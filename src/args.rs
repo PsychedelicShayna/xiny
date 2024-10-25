@@ -56,6 +56,7 @@ pub struct CliArgs {
     #[arg(requires_if("refind", "explicit_subject"))]
     #[arg(requires_if("refind", "implicit_subject"))]
     #[arg(requires_if("refind", "list"))]
+    #[arg(value_parser = data::LANGUAGES)]
     #[arg(value_name("LANGUAGE"))]
     pub lang: Option<String>,
 

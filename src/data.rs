@@ -1,3 +1,10 @@
+pub const LANGUAGES: [&str; 38] = [
+    "ar-ar", "be-by", "bg-bg", "ca-es", "cs-cz", "de-de", "el-gr", "en-us", "es-es", "fa-ir",
+    "fi-fi", "fr-fr", "he-he", "hi-in", "hu-hu", "id-id", "it-it", "ja-jp", "ko-kr", "lt-lt",
+    "ms-my", "nl-nl", "no-nb", "pl-pl", "pt-br", "pt-pt", "ro-ro", "ru-ru", "sk-sk", "sl-si",
+    "sv-se", "ta-in", "th-th", "tr-tr", "uk-ua", "vi-vn", "zh-cn", "zh-tw",
+];
+
 pub const SUBJECTS: [&str; 187] = [
     "ada",
     "amd",
