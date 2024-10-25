@@ -3,8 +3,6 @@ use std::process;
 
 use anyhow::{self as ah, Context};
 
-use crate::shell;
-
 /// Outputs the Markdown document to stdout using the provided renderer, or as
 /// raw plaintext if None is provided.
 pub fn print_document(path: &PathBuf, renderer: Option<&str>) -> ah::Result<()> {
@@ -48,17 +46,6 @@ pub fn print_document(path: &PathBuf, renderer: Option<&str>) -> ah::Result<()> 
         .arg(path.display().to_string())
         .status()
         .context("print_document checking renderer binary")?;
-
-    // let (stdout, stderr) = shell::shell(renderer, vec![path.display().to_string().as_str()])
-    //     .context("print_document rendering document")?;
-    //
-    // if !stdout.is_empty() {
-    //     println!("{}", stdout);
-    // } else if !stderr.is_empty() {
-    //     println!("{}", stderr);
-    // } else {
-    //     ah::bail!("Renderer did not output anything.");
-    // }
 
     Ok(())
 }
