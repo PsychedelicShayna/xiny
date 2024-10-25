@@ -27,8 +27,11 @@ impl Language {
         let language = lang_tag_to_desc(&language_tag)
             .ok_or(ah::anyhow!("Unknown language tag {}", language_tag))?;
 
-        let region = region_tag_to_desc(&region_tag)
-            .ok_or(ah::anyhow!("Unknown region tag {}", region_tag))?;
+        // In case the tag wasn't found as a region, try looking it up as a
+        // language (written to solve no-nb)
+        let region = region_tag_to_desc(&region_tag).or_else(|| {
+            lang_tag_to_desc(&region_tag)
+        }).ok_or(ah::anyhow!("Unknown region tag {}", &region_tag))?;
 
         Ok(Self {
             language: language.to_string(),

@@ -162,8 +162,8 @@ impl XinY {
 
             let language = match Language::from_tag(name) {
                 Ok(lang) => lang,
-                Err(_) => {
-                    eprintln!("Skipping path {:?}; invalid language tag.", path);
+                Err(e) => {
+                    // eprintln!("Skipping path {:?}; invalid language tag ({:?})", path, e);
                     continue;
                 }
             };
