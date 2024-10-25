@@ -1,0 +1,64 @@
+use std::path::PathBuf;
+use std::process;
+
+use anyhow::{self as ah, Context};
+
+use crate::shell;
+
+/// Outputs the Markdown document to stdout using the provided renderer, or as
+/// raw plaintext if None is provided.
+pub fn print_document(path: &PathBuf, renderer: Option<&str>) -> ah::Result<()> {
+    if !path.exists() {
+        return Err(ah::anyhow!("The document does not exist."));
+    }
+
+    // Simplest case: print the document as plaintext.
+    if let None = renderer {
+        let document = std::fs::read_to_string(&path).context("print_document reading document")?;
+        println!("{}", document);
+        return Ok(());
+    }
+
+    // If a renderer is provided, we need to check if the binary exists.
+    let renderer = renderer.unwrap();
+
+    let env_path =
+        std::env::var("PATH").context("print_document getting PATH environment variable")?;
+
+    let env_paths = env_path.split(':');
+
+    let mut binary_exists: bool = false;
+
+    for path in env_paths {
+        let path = std::path::Path::new(path).join(renderer);
+
+        if path.exists() {
+            binary_exists = true;
+            break;
+        }
+    }
+
+    if !binary_exists {
+        return Err(ah::anyhow!(
+            "Could not find the renderer binary in the PATH environment variable."
+        ));
+    }
+
+    process::Command::new(renderer)
+        .arg(path.display().to_string())
+        .status()
+        .context("print_document checking renderer binary")?;
+
+    // let (stdout, stderr) = shell::shell(renderer, vec![path.display().to_string().as_str()])
+    //     .context("print_document rendering document")?;
+    //
+    // if !stdout.is_empty() {
+    //     println!("{}", stdout);
+    // } else if !stderr.is_empty() {
+    //     println!("{}", stderr);
+    // } else {
+    //     ah::bail!("Renderer did not output anything.");
+    // }
+
+    Ok(())
+}
