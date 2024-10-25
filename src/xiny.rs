@@ -1,4 +1,10 @@
-use std::{collections::BTreeMap as Map, ffi::OsStr, fs::DirEntry, io, path::PathBuf};
+use std::{
+    collections::{BTreeMap as Map, HashSet},
+    ffi::OsStr,
+    fs::DirEntry,
+    io,
+    path::PathBuf,
+};
 
 use crate::lang::Language;
 use anyhow::{self as ah, Context};
@@ -51,6 +57,13 @@ impl XinY {
         self.subjects
             .get(subject)
             .and_then(|sf| sf.get_in_language(lang))
+    }
+
+    pub fn get_available_languages(&self) -> HashSet<&Language> {
+        self.subjects
+            .values()
+            .flat_map(SubjectFiles::available_languages)
+            .collect()
     }
 
     /// Collects and stores the subjects found in the given directory in the
@@ -152,8 +165,8 @@ impl XinY {
 
             let language = match Language::from_tag(name) {
                 Ok(lang) => lang,
-                Err(e) => {
-                    eprintln!("Skipping directory {:?} as it is not a language directory, returned error {:?}.", path, e);
+                Err(_) => {
+                    eprintln!("Skipping path {:?}; invalid language tag.", path);
                     continue;
                 }
             };
