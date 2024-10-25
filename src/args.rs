@@ -11,7 +11,7 @@ use crate::data;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)] // Populates author/version info from Cargo.toml
 #[command(group(ArgGroup::new("AlternateOperatingModes")
-        .args(&["list", "langs", "config",  "gen_completions", "seek", "check_remote", "sync", "reclone"])
+        .args(&["list", "langs", "set_conf", "get_conf",  "gen_completions", "seek", "check_remote", "sync", "reclone"])
         .multiple(false)))]
 #[clap(
     name = "xiny",
@@ -26,11 +26,12 @@ pub struct CliArgs {
     #[arg(help = "The subject to view (e.g. bash, python, etc.)")]
     #[arg(value_parser = data::SUBJECTS)]
     #[arg(hide_possible_values(true), value_name = "SUBJECT")]
+    #[arg(index(1))]
     pub implicit_subject: Option<String>,
 
     /// The subject to view (e.g. bash, python, etc.)
     #[arg(value_parser = data::SUBJECTS)]
-    #[arg(hide_possible_values(true), value_name = "SUBJECT")]
+    #[arg(hide_possible_values(true), value_name = "SUBJECT-EXPLICIT")]
     #[arg(
         long = "subject",
         short = 's',
@@ -85,6 +86,7 @@ pub struct CliArgs {
         long,
         help = "Check if the local repository is up-to-date without making any changes."
     )]
+    #[arg(conflicts_with("SubjectGroup"))]
     pub check_remote: bool,
 
     /// Sync with the remote repository if it's behind.
@@ -93,6 +95,7 @@ pub struct CliArgs {
         short = 'p',
         help = "Pulls changes from the remote repository if the local repository is behind."
     )]
+    #[arg(conflicts_with("SubjectGroup"))]
     pub sync: bool,
 
     #[arg(
@@ -100,6 +103,7 @@ pub struct CliArgs {
         short = 'P',
         help = "Purges the local repository and re-clones the remote repository."
     )]
+    #[arg(conflicts_with("SubjectGroup"))]
     pub reclone: bool,
 
     /// Generate shell completions and output to stdout.
@@ -108,6 +112,7 @@ pub struct CliArgs {
         help = "Generate shell completions for the specified shell and output to stdout."
     )]
     #[arg(num_args(1))]
+    #[arg(conflicts_with("SubjectGroup"))]
     #[arg(value_name("SHELL"))]
     pub gen_completions: Option<Shell>,
 
@@ -133,11 +138,20 @@ pub struct CliArgs {
 
     // Change a config key with a specific value.
     #[arg(
+        long = "get-conf",
+        help = "List the config values, or a specific config key."
+    )]
+    #[arg(num_args(0..2))]
+    #[arg(value_name("KEY"))]
+    pub get_conf: Option<Vec<String>>,
+
+    // Change a config key with a specific value.
+    #[arg(
         short = 'c',
-        long = "config",
+        long = "set-conf",
         help = "Set a configuration key to a new value."
     )]
     #[arg(num_args(2))]
     #[arg(value_names(&["KEY", "VALUE"]))]
-    pub config: Option<String>,
+    pub set_conf: Option<Vec<String>>,
 }
