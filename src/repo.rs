@@ -12,7 +12,7 @@ pub struct Repo {
 }
 
 impl Repo {
-    pub fn new(clone_uri: String, branch: String) -> ah::Result<Self> {
+    pub fn new(clone_uri: &String, branch: &String) -> ah::Result<Self> {
         let repo_dir = dirs::data_local_dir()
             .context("Repo::new finding local data directory via dirs::data_local_dir()")?
             .join("xiny")
@@ -24,10 +24,10 @@ impl Repo {
         }
 
         Ok(Self {
-            clone_uri,
+            clone_uri: clone_uri.to_owned(),
             git_dir: repo_dir.join(".git"),
             repo_dir,
-            branch,
+            branch: branch.to_owned(),
         })
     }
 
