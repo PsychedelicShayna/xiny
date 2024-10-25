@@ -1,4 +1,4 @@
-pub const SUBJECTS: [&'static str; 187] = [
+pub const SUBJECTS: [&str; 187] = [
     "ada",
     "amd",
     "angularjs",

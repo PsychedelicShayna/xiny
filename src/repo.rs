@@ -79,7 +79,7 @@ impl Repo {
             ],
         )?;
 
-        if stderr.len() > 0 {
+        if !stderr.is_empty() {
             ah::bail!("Repo::check_behind_remote ls-remote stderr: {}", stderr);
         }
 

@@ -1,9 +1,5 @@
-use std::{
-    io,
-    sync::{Arc, Mutex},
-};
 
-use clap::{command, Arg, ArgGroup, Parser, ValueHint};
+use clap::{command, ArgGroup, Parser};
 use clap_complete::Shell;
 
 use crate::data;

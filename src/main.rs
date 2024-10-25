@@ -16,7 +16,7 @@ pub mod shell;
 pub mod table;
 pub mod xiny;
 
-use crate::{args::*, conf::*, lang::*, repo::*, shell::*, xiny::*};
+use crate::{args::*, conf::*, lang::*, repo::*, xiny::*};
 
 fn get_terminal_size() -> (usize, usize) {
     let (width, height) = term_size::dimensions().unwrap_or((80, 24));
@@ -78,7 +78,7 @@ fn main() -> ah::Result<()> {
     // set-conf ---------------------------------------------------------------
     {
         if let Some(cfg) = &cli.set_conf {
-            handle_set_conf(&cfg, &mut config)?;
+            handle_set_conf(cfg, &mut config)?;
             exit(0);
         }
     }
@@ -86,7 +86,7 @@ fn main() -> ah::Result<()> {
     // get-conf ---------------------------------------------------------------
     {
         if let Some(cfg) = &cli.get_conf {
-            handle_get_conf(&cfg, &mut config)?;
+            handle_get_conf(cfg, &mut config)?;
             exit(0);
         }
     }
@@ -142,10 +142,7 @@ fn main() -> ah::Result<()> {
                     exit(1);
                 });
 
-                subjects = subjects
-                    .into_iter()
-                    .filter(|s| xiny.get_subject_in(s, &language).is_some())
-                    .collect();
+                subjects.retain(|s| xiny.get_subject_in(s, &language).is_some());
             }
 
             let longest = subjects.iter().map(|s| s.len()).max().unwrap_or(0);

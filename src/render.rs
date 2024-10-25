@@ -11,8 +11,8 @@ pub fn print_document(path: &PathBuf, renderer: Option<&str>) -> ah::Result<()> 
     }
 
     // Simplest case: print the document as plaintext.
-    if let None = renderer {
-        let document = std::fs::read_to_string(&path).context("print_document reading document")?;
+    if renderer.is_none() {
+        let document = std::fs::read_to_string(path).context("print_document reading document")?;
         println!("{}", document);
         return Ok(());
     }

@@ -1,8 +1,6 @@
 use std::{
     collections::{BTreeMap as Map, HashSet},
     ffi::OsStr,
-    fs::DirEntry,
-    io,
     path::PathBuf,
 };
 
@@ -86,7 +84,7 @@ impl XinY {
                 continue;
             }
 
-            let name: &str = match path.file_name().map(OsStr::to_str).flatten() {
+            let name: &str = match path.file_name().and_then(OsStr::to_str) {
                 Some(name) => name.trim(),
                 None => {
                     eprintln!("Skipping path {:?}; invalid UTF-8 in name.", path);
@@ -104,8 +102,7 @@ impl XinY {
             let filter_out = format!("-{}.html", &language.region_tag);
             let name = name.replace(&filter_out, ".html");
 
-            let subject_name: &str = name
-                .splitn(2, '.')
+            let subject_name: &str = name.split('.')
                 .next()
                 .context("XinY::collect_subjects splitting entry name by '.'")?;
 
@@ -155,7 +152,7 @@ impl XinY {
                 continue;
             }
 
-            let name: &str = match path.file_name().map(OsStr::to_str).flatten() {
+            let name: &str = match path.file_name().and_then(OsStr::to_str) {
                 Some(name) => name,
                 None => {
                     eprintln!("Skipping path {:?}; invalid UTF-8 in name.", path);
