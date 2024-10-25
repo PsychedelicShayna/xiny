@@ -177,7 +177,7 @@ fn main() -> ah::Result<()> {
             let padding = longest + 2;
 
             let (w, _) = get_terminal_size();
-            let wrap_limit = w / padding;
+            let wrap_limit = (w / padding) % 8;
 
             let mut wrap_counter = 1;
 
