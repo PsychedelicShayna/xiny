@@ -1,10 +1,11 @@
-use std::fs::{self, File};
-use std::io::{BufReader, Read, Write};
+use std::fs::{self, File, OpenOptions};
+use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::PathBuf;
 
 use anyhow::{self as ah, Context};
 use dirs;
 
+#[derive(Debug, Clone)]
 pub struct ConfigFile {
     pub values: Config,
     pub path: PathBuf,
@@ -41,11 +42,16 @@ impl ConfigFile {
             config_file.values = default_config;
             config_file.path = config_file_path;
         } else {
-            let file = File::open(&config_file_path)
-                .context("Config struct opening config file via File::open()")?;
+            let file = OpenOptions::new()
+                .read(true)
+                .open(&config_file_path)
+                .context(
+                    "Config struct opening config file via OpenOptions::new().read(true).open()",
+                )?;
 
             let mut reader = BufReader::new(file);
             let mut config_str = String::new();
+
             reader
                 .read_to_string(&mut config_str)
                 .context("Config struct reading config file via BufReader::read_to_string()")?;
@@ -57,17 +63,25 @@ impl ConfigFile {
         Ok(config_file)
     }
 
-    fn write_changes(&self) -> ah::Result<()> {
-        let mut file = File::open(&self.path).context("ConfigFile write_changes opening file")?;
+    pub fn write_changes(&self) -> ah::Result<()> {
+        let file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(&self.path)
+            .context("ConfigFile write_changes OpenOptions opening file")?;
+
+        let mut writer = BufWriter::new(file);
         let config_str = self.values.dump();
 
-        file.write_all(config_str.as_bytes())
+        writer
+            .write_all(config_str.as_bytes())
             .context("ConfigFile write_changes writing to file")?;
 
         Ok(())
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Config {
     pub repo: String,
     pub branch: String,
@@ -91,6 +105,34 @@ impl Default for Config {
 impl Config {
     pub fn update(&mut self, config: &str) {
         *self = Config::parse(config);
+    }
+
+    pub fn is_valid_key(key: &str) -> bool {
+        matches!(key, "repo" | "branch" | "langs" | "renderer" | "first")
+    }
+
+    pub fn set_value(&mut self, key: &str, value: &str) -> ah::Result<()> {
+        match key {
+            "repo" => self.repo = value.into(),
+            "branch" => self.branch = value.into(),
+            "langs" => self.langs = value.split(',').map(|s| s.into()).collect(),
+            "renderer" => self.renderer = value.into(),
+            "first" if matches!(key, "true" | "false") => self.first = value.parse().unwrap(),
+            _ => ah::bail!("Invalid config assignment {} = {}", key, value),
+        };
+
+        Ok(())
+    }
+
+    pub fn get_value(&self, key: &str) -> Option<String> {
+        match key {
+            "repo" => Some(self.repo.clone()),
+            "branch" => Some(self.branch.clone()),
+            "langs" => Some(self.langs.join(",")),
+            "renderer" => Some(self.renderer.clone()),
+            "first" => Some(self.first.to_string()),
+            _ => None,
+        }
     }
 
     pub fn parse(config: &str) -> Self {
