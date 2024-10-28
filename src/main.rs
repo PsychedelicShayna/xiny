@@ -3,6 +3,7 @@ use std::{io, ops::Deref};
 
 use anyhow::{self as ah, Context};
 use clap::{CommandFactory, Parser};
+use crossterm::style::Print;
 
 pub mod ansi;
 pub mod args;
@@ -16,6 +17,7 @@ pub mod repo;
 pub mod shell;
 pub mod table;
 pub mod xiny;
+pub mod futile;
 
 use crate::{args::*, conf::*, lang::*, repo::*, xiny::*};
 
@@ -70,8 +72,17 @@ fn handle_get_conf(get_conf: &Vec<String>, conf: &mut ConfigFile) -> ah::Result<
 }
 
 fn main() -> ah::Result<()> {
-    find::test_entrypoint();
-    exit(0);
+    use crossterm as ct;
+    use crossterm::*;
+
+
+    let (rows, cols) = get_terminal_size();
+
+    execute!(std::io::stdout(), ct::cursor::MoveTo(0, rows as u16), Print("Hello"));
+
+
+exit(0);
+
 
     let mut config = ConfigFile::new().unwrap();
     let repo = Repo::new(&config.values.repo, &config.values.branch).unwrap();
@@ -243,12 +254,16 @@ fn main() -> ah::Result<()> {
             if !cli.regex && !cli.fuzzy {
                 let matches = find::find_terms(document_path, terms)?;
 
-                find::match_printer(
-                    document_path,
-                    matches,
-                    cli.context.unwrap_or(6),
-                    cli.matches.unwrap_or(1),
-                )?;
+                let cycler_options = find::CyclerOptions::default();
+                let mut cycler = find::Cycler::new(matches, cycler_options)?;
+                cycler.render();
+
+                // find::match_printer(
+                //     document_path,
+                //     matches,
+                //     cli.context.unwrap_or(6),
+                //     cli.matches.unwrap_or(1),
+                // )?;
             }
         } else {
             if let Err(e) = render::print_document(document_path, renderer.as_deref()) {
