@@ -102,7 +102,8 @@ impl XinY {
             let filter_out = format!("-{}.html", &language.region_tag);
             let name = name.replace(&filter_out, ".html");
 
-            let subject_name: &str = name.split('.')
+            let subject_name: &str = name
+                .split('.')
                 .next()
                 .context("XinY::collect_subjects splitting entry name by '.'")?;
 

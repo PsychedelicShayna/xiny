@@ -1,5 +1,5 @@
-use std::io;
 use std::process::exit;
+use std::{io, ops::Deref};
 
 use anyhow::{self as ah, Context};
 use clap::{CommandFactory, Parser};
@@ -8,6 +8,7 @@ pub mod ansi;
 pub mod args;
 pub mod conf;
 pub mod data;
+pub mod find;
 pub mod iana;
 pub mod lang;
 pub mod render;
@@ -69,6 +70,9 @@ fn handle_get_conf(get_conf: &Vec<String>, conf: &mut ConfigFile) -> ah::Result<
 }
 
 fn main() -> ah::Result<()> {
+    find::test_entrypoint();
+    exit(0);
+
     let mut config = ConfigFile::new().unwrap();
     let repo = Repo::new(&config.values.repo, &config.values.branch).unwrap();
     let xiny = XinY::new(&repo.repo_dir).context("XinY::new")?;
@@ -196,7 +200,7 @@ fn main() -> ah::Result<()> {
         }
     }
 
-    // subject printing -------------------------------------------------------
+    // Subject Related -------------------------------------------------------
     let mut subject_name: Option<String> = None;
 
     if let Some(subject) = cli.explicit_subject {
@@ -225,11 +229,32 @@ fn main() -> ah::Result<()> {
             exit(1);
         });
 
+        // What to do with the document now ----------------------------------
+
+        // Just print the path
+        if cli.r#where {
+            println!("{}", document_path.display());
+            exit(0);
+        }
+
         let renderer = (!config.values.renderer.is_empty()).then_some(config.values.renderer);
 
-        if let Err(e) = render::print_document(document_path, renderer.as_deref()) {
-            eprintln!("Error rendering document: {:?}", e);
-            exit(1);
+        if let Some(terms) = cli.find {
+            if !cli.regex && !cli.fuzzy {
+                let matches = find::find_terms(document_path, terms)?;
+
+                find::match_printer(
+                    document_path,
+                    matches,
+                    cli.context.unwrap_or(6),
+                    cli.matches.unwrap_or(1),
+                )?;
+            }
+        } else {
+            if let Err(e) = render::print_document(document_path, renderer.as_deref()) {
+                eprintln!("Error rendering document: {:?}", e);
+                exit(1);
+            }
         }
 
         exit(0);
