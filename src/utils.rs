@@ -16,8 +16,8 @@ use term_size;
 
 #[derive(Debug, Clone, Default)]
 pub struct Dimensions {
-    width: usize,
-    height: usize,
+    pub width: usize,
+    pub height: usize,
 }
 
 pub fn crc32(data: &Vec<u8>) -> String {

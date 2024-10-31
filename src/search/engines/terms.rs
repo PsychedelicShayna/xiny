@@ -7,22 +7,38 @@ pub struct TermSearch {
 
 impl SearchEngine for TermSearch {
     /// Search for the query in the given lines and return the line number and index of the first match.
-    fn search(&mut self, lines: &Vec<String>, query: &str) -> Vec<(usize, usize)> {
+    fn search(&mut self, lines: &Vec<(usize, String)>, query: &str) -> Vec<(usize, usize)> {
+        let query = query.to_ascii_lowercase();
         let terms = query.split_whitespace().collect::<Vec<&str>>();
 
         lines
-            .iter()
-            .enumerate()
+            .into_iter()
             .fold(Vec::<(usize, usize)>::new(), |mut acc, (line_num, line)| {
-                for term in &terms {
-                    if let Some(index) = line.find(term) {
-                        acc.push((line_num, index));
-                        return acc;
+                let line = line.to_ascii_lowercase();
+
+                // for term in &terms {
+                    if line.contains(&query) {
+                        acc.push((*line_num, 0));
                     }
-                }
+                // }
 
                 acc
             })
+
+        // let terms = query.split_whitespace().collect::<Vec<&str>>();
+        //
+        // lines
+        //     .iter()
+        //     .fold(Vec::<(usize, usize)>::new(), |mut acc, (line_num, line)| {
+        //         for term in &terms {
+        //             if let Some(index) = line.find(term) {
+        //                 acc.push((*line_num, index));
+        //                 return acc;
+        //             }
+        //         }
+        //
+        //         acc
+        //     })
     }
 }
 

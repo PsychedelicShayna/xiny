@@ -54,6 +54,7 @@ pub struct TuiState {
 
     pub search_query: String,
     pub search_results: Vec<(usize, usize)>, // Row, Col
+    pub search_result_index: usize,
     pub search_buffer: String,
     pub search_cursor_index: usize,
 
@@ -65,7 +66,9 @@ pub struct TuiState {
     pub vi_mode: ViMode,
     pub vi_chord: Vec<char>,
 
-    pub preview_lines: Vec<String>,
+    pub document_lines: Vec<(usize, String)>,
+
+    pub preview_offset: isize,
     pub preview_context: usize,
     pub preview_dimensions: Dimensions,
 }
@@ -74,18 +77,20 @@ impl Default for TuiState {
     fn default() -> Self {
         Self {
             el_kill: false,
-            vi_chord: Vec::<char>::new(),
+            st_kill: Arc::new(atomic::AtomicBool::new(false)),
+            vi_mode: ViMode::Normal,
+            preview_context: 3,
             search_query: String::new(),
             search_results: Vec::new(),
-            search_buffer_history: Vec::new(),
-            search_cursor_index: 0,
+            search_result_index: 0,
             search_buffer: String::new(),
-            preview_lines: Vec::new(),
-            preview_context: 0,
-            vi_mode: ViMode::Normal,
-            preview_dimensions: Dimensions::default(),
+            search_cursor_index: 0,
             st_handle: None,
-            st_kill: Arc::new(atomic::AtomicBool::new(false)),
+            search_buffer_history: Vec::new(),
+            vi_chord: Vec::new(),
+            document_lines: Vec::new(),
+            preview_offset: 0,
+            preview_dimensions: Dimensions { height: 10, width: 80 },
         }
     }
 }
@@ -99,7 +104,7 @@ pub fn event_loop<SE: SearchEngine>(subject: PathBuf) -> ah::Result<()> {
         .context("Failed to open file")?;
 
     let reader = BufReader::new(file);
-    let lines: Vec<String> = reader.lines().filter_map(Result::ok).collect();
+    state.document_lines = reader.lines().filter_map(Result::ok).enumerate().collect();
 
     // We'll send queries to the thread using st_query_send, that one's
     // for us. The search thread will receive queries from st_query_recv,
@@ -115,10 +120,14 @@ pub fn event_loop<SE: SearchEngine>(subject: PathBuf) -> ah::Result<()> {
     // know when to stop looping and die.
     let st_kill = state.st_kill.clone();
 
+    // A copy for the search thread.
+    let document_lines = state.document_lines.clone();
+
     state.st_handle = Some(thread::spawn(move || {
         let st_query_recv = st_query_recv;
         let st_result_send = st_result_send;
         let st_kill = st_kill;
+        let lines = document_lines;
 
         // The search thread needs a search engine to use.
         let mut st_search_engine = SE::default();
@@ -173,7 +182,7 @@ pub fn event_loop<SE: SearchEngine>(subject: PathBuf) -> ah::Result<()> {
 
     while !state.el_kill {
         input_handler::handle_inputs(&mut state)?;
-        // --- Receive Search Results ----------------------------------------- 
+        // --- Receive Search Results -----------------------------------------
         // It makes more sense to do this first, as we avoid sleeping through
         // the time taken to handle input events, and then render the TUI. It
         // gives the search thread a little more time to do its work.
@@ -182,7 +191,7 @@ pub fn event_loop<SE: SearchEngine>(subject: PathBuf) -> ah::Result<()> {
             state.search_results = results;
         }
 
-        // --- Send Search Query ---------------------------------------------- 
+        // --- Send Search Query ----------------------------------------------
         //  TODO: Implement a debounce mechanism to not spam the sarch thread.
         //  In other words, only pass the search buffer to the search thread
         //  after an amount of milliseconds has passed since the last change.

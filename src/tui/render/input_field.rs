@@ -46,9 +46,9 @@ pub fn render(state: &TuiState, anchor: &(usize, usize)) -> ah::Result<()> {
 
     queue!(
         std::io::stdout(),
-        MoveToNextLine(1),
-        Clear(ClearType::CurrentLine),
-        Print(&sep),
+        // MoveToNextLine(1),
+        // Clear(ClearType::CurrentLine),
+        // Print(&sep),
         MoveToNextLine(1),
         Clear(ClearType::CurrentLine),
         Print(&prefix),

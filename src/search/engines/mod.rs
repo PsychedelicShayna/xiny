@@ -6,5 +6,5 @@ pub mod terms;
 
 pub trait SearchEngine: Debug + Clone + Default {
     /// Search through every line for query, return (row,col) for every match.
-    fn search(&mut self, lines: &Vec<String>, query: &str) -> Vec<(usize, usize)>;
+    fn search(&mut self, lines: &Vec<(usize, String)>, query: &str) -> Vec<(usize, usize)>;
 }

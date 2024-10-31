@@ -242,6 +242,24 @@ pub fn handle_inputs(state: &mut TuiState) -> ah::Result<()> {
         }
 
         // --------------------------------------------------------------------
+
+        (ViMode::Normal, KCode::Char('n'), KMods::NONE) => {
+            if state.search_result_index + 1 > state.search_results.len() {
+                state.search_result_index = 0
+            } else {
+                state.search_result_index += 1
+            }
+        }
+
+        (ViMode::Normal, KCode::Char('N'), KMods::SHIFT) => {
+            if state.search_result_index > 0 {
+                state.search_result_index -= 1;
+            } else {
+                state.search_result_index = state.search_results.len() - 1;
+            }
+        }
+
+
         (ViMode::Normal, KCode::Char('q'), KMods::NONE) => {
             state.el_kill = true;
             state.st_kill.store(true, Ordering::SeqCst);
