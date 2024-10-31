@@ -23,7 +23,9 @@ lazy_static! {
 
 pub fn handle_cli_args() -> ah::Result<()> {
     let mut config = ConfigFile::new().unwrap();
-    let mut repo = Repo::new(config.values.repo, config.values.branch).unwrap();
+
+    let mut repo = Repo::new(CONFIG.VALUES.REPO, CONFIG.VALUES.BRANCH).unwrap();
+
     repo.sync(true).unwrap();
 
     let mut xiny = XinY::new(&repo.repo_dir).context("XinY::new")?;

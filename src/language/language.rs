@@ -1,4 +1,4 @@
-use crate::iana;
+use super::iana_tags as iana;
 use anyhow as ah;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]

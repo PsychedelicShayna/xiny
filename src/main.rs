@@ -1,30 +1,31 @@
+use std::io;
 use std::process::exit;
-use std::{io, ops::Deref};
 
 use anyhow::{self as ah, Context};
+use argparse::CliArgs;
 use clap::{CommandFactory, Parser};
-use crossterm::style::Print;
+use config::parser::*;
 
-pub mod ansi;
-pub mod args;
-pub mod conf;
-pub mod data;
-pub mod find;
-pub mod iana;
-pub mod lang;
+pub mod argparse;
+pub mod config;
+pub mod database;
+pub mod language;
 pub mod render;
-pub mod repo;
-pub mod shell;
-pub mod table;
-pub mod xiny;
-pub mod futile;
+pub mod search;
+pub mod tui;
+pub mod utils;
 
-use crate::{args::*, conf::*, lang::*, repo::*, xiny::*};
+use database::database::XinY;
+use database::repository::Repo;
+use language::language::Language;
+use search::engines::terms::TermSearch;
+use tui::event_loop::{self, TuiState};
+use utils::Dimensions;
 
-fn get_terminal_size() -> (usize, usize) {
-    let (width, height) = term_size::dimensions().unwrap_or((80, 24));
-    (width, height)
-}
+// fn get_terminal_size() -> (usize, usize) {
+//     let (width, height) = term_size::dimensions().unwrap_or((80, 24));
+//     (width, height)
+// }
 
 /// Handles the --set-conf argument, which sets a configuration value.
 fn handle_set_conf(set_conf: &Vec<String>, conf: &mut ConfigFile) -> ah::Result<()> {
@@ -57,6 +58,7 @@ fn handle_set_conf(set_conf: &Vec<String>, conf: &mut ConfigFile) -> ah::Result<
 fn handle_get_conf(get_conf: &Vec<String>, conf: &mut ConfigFile) -> ah::Result<()> {
     if get_conf.is_empty() {
         println!("{}", conf.values.dump());
+
     } else if get_conf.len() == 1 {
         let get_conf = get_conf[0].as_str();
 
@@ -72,22 +74,12 @@ fn handle_get_conf(get_conf: &Vec<String>, conf: &mut ConfigFile) -> ah::Result<
 }
 
 fn main() -> ah::Result<()> {
-    use crossterm as ct;
-    use crossterm::*;
-
-
-    let (rows, cols) = get_terminal_size();
-
-    execute!(std::io::stdout(), ct::cursor::MoveTo(0, rows as u16), Print("Hello"));
-
-
-exit(0);
-
-
+    let (w, h) = utils::Dimensions::from_terminal()?.unpack();
     let mut config = ConfigFile::new().unwrap();
-    let repo = Repo::new(&config.values.repo, &config.values.branch).unwrap();
-    let xiny = XinY::new(&repo.repo_dir).context("XinY::new")?;
 
+    let repo = Repo::new(&config.values.repo, &config.values.branch).unwrap();
+
+    let xiny = XinY::new(&repo.repo_dir).context("XinY::new")?;
     let cli = CliArgs::parse();
 
     // set-conf ---------------------------------------------------------------
@@ -163,7 +155,9 @@ exit(0);
             let longest = subjects.iter().map(|s| s.len()).max().unwrap_or(0);
             let padding = longest + 2;
 
-            let (w, _) = get_terminal_size();
+            let Some((w, _)) = term_size::dimensions() else {
+                exit(1)
+            };
             let wrap_limit = w / padding;
 
             let mut wrap_counter = 1;
@@ -191,7 +185,7 @@ exit(0);
             let longest = langs.iter().map(|l| l.tag.len()).max().unwrap_or(0);
             let padding = longest + 2;
 
-            let (w, _) = get_terminal_size();
+            let (w, _) = Dimensions::from_terminal()?.unpack();
             let wrap_limit = (w / padding) % 8;
 
             let mut wrap_counter = 1;
@@ -250,26 +244,26 @@ exit(0);
 
         let renderer = (!config.values.renderer.is_empty()).then_some(config.values.renderer);
 
-        if let Some(terms) = cli.find {
-            if !cli.regex && !cli.fuzzy {
-                let matches = find::find_terms(document_path, terms)?;
+        if cli.interactive {
+            event_loop::event_loop::<TermSearch>(document_path.to_path_buf())?;
 
-                let cycler_options = find::CyclerOptions::default();
-                let mut cycler = find::Cycler::new(matches, cycler_options)?;
-                cycler.render();
-
-                // find::match_printer(
-                //     document_path,
-                //     matches,
-                //     cli.context.unwrap_or(6),
-                //     cli.matches.unwrap_or(1),
-                // )?;
-            }
-        } else {
-            if let Err(e) = render::print_document(document_path, renderer.as_deref()) {
-                eprintln!("Error rendering document: {:?}", e);
-                exit(1);
-            }
+            // if !cli.regex && !cli.fuzzy {
+            //     let matches = find::find_terms(document_path, terms)?;
+            //
+            //     let cycler_options = find::CyclerOptions::default();
+            //     let mut cycler = find::Cycler::new(matches, cycler_options)?;
+            //     cycler.render();
+            //
+            //     // find::match_printer(
+            //     //     document_path,
+            //     //     matches,
+            //     //     cli.context.unwrap_or(6),
+            //     //     cli.matches.unwrap_or(1),
+            //     // )?;
+            // }
+        } else if let Err(e) = render::print_document(document_path, renderer.as_deref()) {
+            eprintln!("Error rendering document: {:?}", e);
+            exit(1);
         }
 
         exit(0);

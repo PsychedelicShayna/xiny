@@ -4,7 +4,7 @@ use std::{
     path::PathBuf,
 };
 
-use crate::lang::Language;
+use crate::language::language::Language;
 use anyhow::{self as ah, Context};
 
 pub type SubjectName = String;
