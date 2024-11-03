@@ -308,7 +308,7 @@ pub fn match_printer(
         let end_line: usize = matched_line.line_num + context;
 
         println!("Match for term '{}':", term);
-        println!("{}", "-".repeat(80));
+        println!("{}", "-".repeat(20));
 
         for (line_num, ref line) in lines.iter().enumerate() {
             if line_num >= start_line && line_num <= end_line {

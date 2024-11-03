@@ -25,6 +25,18 @@ pub fn crc32(data: &Vec<u8>) -> String {
     format!("{:08x}", result)
 }
 
+pub fn read_lines(path: &PathBuf) -> ah::Result<Vec<String>> {
+    Ok(BufReader::new(
+        OpenOptions::new()
+            .read(true)
+            .open(path)
+            .context("Failed to open file")?,
+    )
+    .lines()
+    .filter_map(Result::ok)
+    .collect())
+}
+
 impl Dimensions {
     pub fn from_terminal() -> ah::Result<Self> {
         let (width, height) = term_size::dimensions()

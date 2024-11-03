@@ -2,17 +2,25 @@ use std::hash::DefaultHasher;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::io::stdout;
+use std::io::Cursor;
 use std::path::PathBuf;
 use std::process::abort;
 use std::sync::atomic::Ordering;
 
 use super::input_handler;
-use super::render;
-use super::render::input_field;
+use super::widgets::input_field;
+use super::widgets::input_field::InputField;
 
+use crate::debug;
+use crate::log;
 use crate::search::engines::SearchEngine;
+use crate::tui::widgets;
+use crate::utils::read_lines;
 use crate::utils::Dimensions;
 
+use cb::channel::unbounded;
+use debug::*;
+use phf::set::Iter;
 use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader, Read};
 use std::sync::{atomic, Arc};
@@ -32,12 +40,9 @@ use crossterm::ExecutableCommand;
 
 use anyhow as ah;
 use anyhow::Context;
+use widgets::previewer::ViewPort;
 
-#[derive(Debug, Clone)]
-pub enum ViMode {
-    Normal,
-    Insert,
-}
+
 
 #[derive(Debug, Clone)]
 pub enum SearchThreadMessage {
@@ -52,6 +57,8 @@ pub struct TuiState {
     /// wait for the search thread to join before properly exiting.
     pub el_kill: bool,
 
+    pub input_field: InputField,
+
     pub search_query: String,
     pub search_results: Vec<(usize, usize)>, // Row, Col
     pub search_result_index: usize,
@@ -63,22 +70,26 @@ pub struct TuiState {
 
     pub search_buffer_history: Vec<String>,
 
-    pub vi_mode: ViMode,
-    pub vi_chord: Vec<char>,
+    pub doc_lines: Vec<(usize, String)>,
 
-    pub document_lines: Vec<(usize, String)>,
+    pub preview_jump: bool,
+    pub preview_viewport: ViewPort,
+
+    /// How many digits are required to rerpesent the maximum line count.
+    pub linum_digits: usize,
 
     pub preview_offset: isize,
     pub preview_context: usize,
-    pub preview_dimensions: Dimensions,
+    pub terminal_size: (u16, u16),
 }
 
 impl Default for TuiState {
     fn default() -> Self {
         Self {
+            input_field: InputField::default(),
+
             el_kill: false,
             st_kill: Arc::new(atomic::AtomicBool::new(false)),
-            vi_mode: ViMode::Normal,
             preview_context: 3,
             search_query: String::new(),
             search_results: Vec::new(),
@@ -87,10 +98,15 @@ impl Default for TuiState {
             search_cursor_index: 0,
             st_handle: None,
             search_buffer_history: Vec::new(),
-            vi_chord: Vec::new(),
-            document_lines: Vec::new(),
+            doc_lines: Vec::new(),
+            linum_digits: 0,
             preview_offset: 0,
-            preview_dimensions: Dimensions { height: 10, width: 80 },
+            terminal_size: (13u16, 80u16),
+            preview_viewport: ViewPort {
+                start_line: 0,
+                context: 7,
+            },
+            preview_jump: false,
         }
     }
 }
@@ -98,64 +114,47 @@ impl Default for TuiState {
 pub fn event_loop<SE: SearchEngine>(subject: PathBuf) -> ah::Result<()> {
     let mut state = TuiState::default();
 
-    let file = OpenOptions::new()
-        .read(true)
-        .open(&subject)
-        .context("Failed to open file")?;
+    {
+        let lines = read_lines(&subject)?;
+        let longest = lines.iter().map(String::len).max().unwrap_or(0);
+        state.linum_digits = (longest as f64).log10().ceil() as usize + 1;
+        state.doc_lines = lines.into_iter().enumerate().collect();
+    }
 
-    let reader = BufReader::new(file);
-    state.document_lines = reader.lines().filter_map(Result::ok).enumerate().collect();
+    let (st_query_send, st_query_recv) = unbounded::<String>();
+    let (st_result_send, st_result_recv) = unbounded::<Vec<(usize, usize)>>();
 
-    // We'll send queries to the thread using st_query_send, that one's
-    // for us. The search thread will receive queries from st_query_recv,
-    // that one's for the thread. We'll move st_query_recv into the thread.
-    let (st_query_send, st_query_recv) = cb::channel::unbounded::<String>();
-
-    // The thread will send results to us using st_result_send, that one's
-    // for the thread. We'll receive them using st_result_recv, that one's
-    // for us. We'll move st_result_send into the thread.
-    let (st_result_send, st_result_recv) = cb::channel::unbounded::<Vec<(usize, usize)>>();
-
-    // We'll also make a copy of the atomic kill switch for the thread to
-    // know when to stop looping and die.
+    // Make copies for thread to own.
     let st_kill = state.st_kill.clone();
-
-    // A copy for the search thread.
-    let document_lines = state.document_lines.clone();
+    let doc_lines = state.doc_lines.clone();
 
     state.st_handle = Some(thread::spawn(move || {
+        // Transfer ownership of variables to the thread.
         let st_query_recv = st_query_recv;
         let st_result_send = st_result_send;
         let st_kill = st_kill;
-        let lines = document_lines;
+        let doc_lines = doc_lines;
 
-        // The search thread needs a search engine to use.
+        // Instantiate the search engine.
         let mut st_search_engine = SE::default();
 
         while !st_kill.load(Ordering::SeqCst) {
             match st_query_recv.try_recv() {
                 Ok(query) => {
-                    let results = st_search_engine.search(&lines, &query);
+                    let results = st_search_engine.search(&doc_lines, &query);
+                    state.preview_offset = 0;
 
                     if let Err(e) = st_result_send.send(results) {
-                        // We can't send results back to the main thread.
-                        // We should kill the thread and abort the program.
-                        // Without the ability to send results back, then
-                        // the program is in an unrecoverable state.
-
                         eprintln!("Failed to send results back to main thread: {:?}", e);
                         abort();
                     }
                 }
 
                 Err(cb::channel::TryRecvError::Empty) => {
-                    // We don't want to overwhelm the CPU, so we'll sleep.
                     thread::sleep(Duration::from_millis(5));
                 }
 
                 Err(cb::channel::TryRecvError::Disconnected) => {
-                    // If the main thread receiver has disconnected, then
-                    // we should definitely kill the thread.
                     break;
                 }
             }
@@ -170,9 +169,9 @@ pub fn event_loop<SE: SearchEngine>(subject: PathBuf) -> ah::Result<()> {
         ah::bail!("Failed to get cursor position");
     };
 
-    let anchor: (usize, usize) = (anchor.0 as usize, anchor.1 as usize);
+    let mut anchor: (usize, usize) = (anchor.0 as usize, anchor.1 as usize);
 
-    // Also enable raw mode for the terminal.
+    // Also enable raw mode for the terminalterm.
     enable_raw_mode()?;
     stdout().execute(Hide)?;
 
@@ -180,7 +179,37 @@ pub fn event_loop<SE: SearchEngine>(subject: PathBuf) -> ah::Result<()> {
     state.search_buffer.hash(&mut hasher);
     let mut prev_hash = hasher.finish();
 
+    let (mut avail_cols, mut avail_rows) =
+        term_size::dimensions().context("Attempt to initially retrieve terminal size.")?;
+
+    let (ccol, crow) =
+        ct::cursor::position().context("Getting cursor location in render loop initially")?;
+    log!("IC {}R {}C", crow, ccol);
+    log!("ID {}R {}C", avail_rows, avail_cols);
+
     while !state.el_kill {
+        let (cols, rows) =
+            term_size::dimensions().context("Attempt to retrieve terminal size for comparison.")?;
+
+        let (nccol, ncrow) =
+            ct::cursor::position().context("Getting cursor location in render.")?;
+
+        log!("SC {}R {}C", ncrow, nccol);
+
+        if rows != avail_rows || cols != avail_cols {
+            log!("{}R -> {}R, {}C -> C{}", avail_rows, rows, avail_cols, cols);
+
+            avail_rows = rows;
+            avail_cols = cols;
+            // if cols != avail_cols {
+            //     let shrank: bool = cols < avail_cols;
+            //     let delta = cols.max(avail_cols) - cols.min(avail_cols);
+            //
+            //     // Terminal size decreased, our reference point, while valid, is
+            //     // no longer going to redraw the rows
+            //
+        }
+
         input_handler::handle_inputs(&mut state)?;
         // --- Receive Search Results -----------------------------------------
         // It makes more sense to do this first, as we avoid sleeping through
@@ -189,6 +218,12 @@ pub fn event_loop<SE: SearchEngine>(subject: PathBuf) -> ah::Result<()> {
 
         if let Ok(results) = st_result_recv.try_recv() {
             state.search_results = results;
+
+            if state.search_results.is_empty() {
+                state.search_result_index = 0
+            } else if state.search_result_index >= state.search_results.len() {
+                state.search_result_index = state.search_results.len() - 1;
+            }
         }
 
         // --- Send Search Query ----------------------------------------------
@@ -207,7 +242,21 @@ pub fn event_loop<SE: SearchEngine>(subject: PathBuf) -> ah::Result<()> {
         // Render the TUI based on the state of the event loop, i.e. state.
         // The rendering logic should be apart from the event loop logic.
         // Its sole responsibility is to render state.
-        render::components(&mut state, &anchor)?;
+        //
+        log!("Prior Anchor {:?}", anchor);
+        let (ncr, ncc) = ct::cursor::position().context("Getting cursor location in render.")?;
+        log!("Post CPos {}R, {}C", ncr, ncc);
+        widgets::components(&mut state, &anchor)?;
+        let (ncr, ncc) = ct::cursor::position().context("Getting cursor location in render.")?;
+        log!("Post Set CPos {}R, {}C", ncr, ncc);
+        log!("Post Anchor {:?}", anchor);
+
+        let Ok(na) = cursor::position() else {
+            ah::bail!("Failed to get cursor position");
+        };
+
+        anchor = (na.0 as usize, na.1 as usize);
+        log!("Post Set Anchor {:?}", anchor);
     }
 
     // If we're here, then the event loop has been killed.
@@ -224,7 +273,7 @@ pub fn event_loop<SE: SearchEngine>(subject: PathBuf) -> ah::Result<()> {
         .context("Failed to join search thread")?;
 
     // We should also make sure to clean up the TUI before exiting.
-    render::cleanup()?;
+    widgets::cleanup()?;
 
     disable_raw_mode()?;
     stdout().execute(Show)?;

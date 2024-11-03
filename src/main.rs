@@ -1,4 +1,4 @@
-use std::io;
+use std::{io, time::Instant};
 use std::process::exit;
 
 use anyhow::{self as ah, Context};
@@ -14,11 +14,13 @@ pub mod render;
 pub mod search;
 pub mod tui;
 pub mod utils;
+pub mod debug;
 
 use database::database::XinY;
 use database::repository::Repo;
+use fuzzy_matcher::FuzzyMatcher;
 use language::language::Language;
-use search::engines::terms::TermSearch;
+use search::engines::{fuzzy::FuzzySearch, regex::RegexSearch, terms::TermSearch};
 use tui::event_loop::{self, TuiState};
 use utils::Dimensions;
 
@@ -58,7 +60,6 @@ fn handle_set_conf(set_conf: &Vec<String>, conf: &mut ConfigFile) -> ah::Result<
 fn handle_get_conf(get_conf: &Vec<String>, conf: &mut ConfigFile) -> ah::Result<()> {
     if get_conf.is_empty() {
         println!("{}", conf.values.dump());
-
     } else if get_conf.len() == 1 {
         let get_conf = get_conf[0].as_str();
 
@@ -74,6 +75,10 @@ fn handle_get_conf(get_conf: &Vec<String>, conf: &mut ConfigFile) -> ah::Result<
 }
 
 fn main() -> ah::Result<()> {
+    #[cfg(debug_assertions)]
+    unsafe { debug::START_TIME = Some(Instant::now()); }
+
+
     let (w, h) = utils::Dimensions::from_terminal()?.unpack();
     let mut config = ConfigFile::new().unwrap();
 
@@ -185,8 +190,8 @@ fn main() -> ah::Result<()> {
             let longest = langs.iter().map(|l| l.tag.len()).max().unwrap_or(0);
             let padding = longest + 2;
 
-            let (w, _) = Dimensions::from_terminal()?.unpack();
-            let wrap_limit = (w / padding) % 8;
+            let (rows, _) = Dimensions::from_terminal()?.unpack();
+            let wrap_limit = (rows / padding) % 8;
 
             let mut wrap_counter = 1;
 
@@ -245,22 +250,13 @@ fn main() -> ah::Result<()> {
         let renderer = (!config.values.renderer.is_empty()).then_some(config.values.renderer);
 
         if cli.interactive {
-            event_loop::event_loop::<TermSearch>(document_path.to_path_buf())?;
-
-            // if !cli.regex && !cli.fuzzy {
-            //     let matches = find::find_terms(document_path, terms)?;
-            //
-            //     let cycler_options = find::CyclerOptions::default();
-            //     let mut cycler = find::Cycler::new(matches, cycler_options)?;
-            //     cycler.render();
-            //
-            //     // find::match_printer(
-            //     //     document_path,
-            //     //     matches,
-            //     //     cli.context.unwrap_or(6),
-            //     //     cli.matches.unwrap_or(1),
-            //     // )?;
-            // }
+            if cli.fuzzy {
+                event_loop::event_loop::<FuzzySearch>(document_path.to_path_buf())?;
+            } else if cli.regex {
+                event_loop::event_loop::<RegexSearch>(document_path.to_path_buf())?;
+            } else {
+                event_loop::event_loop::<TermSearch>(document_path.to_path_buf())?;
+            }
         } else if let Err(e) = render::print_document(document_path, renderer.as_deref()) {
             eprintln!("Error rendering document: {:?}", e);
             exit(1);

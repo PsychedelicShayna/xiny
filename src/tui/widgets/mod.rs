@@ -1,14 +1,17 @@
-use std::io::{stdout, Write};
+use std::{io::{stdout, Write}, rc::Rc, sync::{Arc, Mutex}};
 
 use super::event_loop::TuiState;
 
 pub mod input_field;
 pub mod previewer;
 
+use super::widget;
+
 use anyhow::{self as ah, Context};
 
 use crossterm::{
     cursor::{self},
+    event::Event,
     queue,
 };
 
@@ -24,15 +27,22 @@ pub const BCBL: char = '└';
 pub const BCTR: char = '┌';
 pub const BCBR: char = '┘';
 
-pub fn components(state: &TuiState, anchor: &(usize, usize)) -> ah::Result<()> {
+/// Trait describing drawable TUI component, or "widget", "element", etc...
+/// Must be able to queue to draw, and queue to clear, and must have immutable
+/// access to the rest of the TUI's state.
+
+
+pub fn components(state: &mut TuiState, anchor: &(usize, usize)) -> ah::Result<()> {
     queue!(stdout(), cursor::MoveTo(anchor.0 as u16, anchor.1 as u16))?;
 
     stdout().flush()?;
 
-    previewer::render_previewer(state, anchor).context("Attempted to render previewer component.")?;
-    input_field::render(state, anchor).context("Attempted to render input_field component.")?;
+    // previewer::render_previewer(state).context("Attempted to render previewer component.")?;
+    // input_field::render(state, anchor).context("Attempted to render input_field component.")?;
 
     stdout().flush()?;
+
+    queue!(stdout(), cursor::MoveTo(anchor.0 as u16, anchor.1 as u16))?;
     Ok(())
 }
 

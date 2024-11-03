@@ -2,7 +2,7 @@ use std::sync::atomic::Ordering;
 
 use super::event_loop::TuiState;
 
-use crate::tui::event_loop::ViMode;
+use crate::tui::widgets::input_field::ViMode;
 
 use std::time::Duration;
 
@@ -94,9 +94,9 @@ pub fn handle_inputs(state: &mut TuiState) -> ah::Result<()> {
     let kkind = kevent.kind;
     let kstate = kevent.state;
 
-    match (&state.vi_mode, kcode, kmods) {
+    match (&state.input_field.vi_mode, kcode, kmods) {
         (ViMode::Insert, KCode::Esc | KCode::Enter, KMods::NONE) => {
-            state.vi_mode = ViMode::Normal;
+            state.input_field.vi_mode = ViMode::Normal;
         }
 
         (ViMode::Insert, KCode::Char(c), _) => {
@@ -113,21 +113,21 @@ pub fn handle_inputs(state: &mut TuiState) -> ah::Result<()> {
 
         // Chords: key sequences that require multiple key presses.
         // --------------------------------------------------------------------
-        (ViMode::Normal, KCode::Char('d'), KMods::NONE) => match state.vi_chord.first() {
+        (ViMode::Normal, KCode::Char('d'), KMods::NONE) => match state.input_field.vi_kseq.first() {
             Some('d') => {
                 state.search_buffer.clear();
-                state.vi_chord.clear();
+                state.input_field.vi_kseq.clear();
                 state.search_cursor_index = 0;
             }
             None => {
-                state.vi_chord.push('d');
+                state.input_field.vi_kseq.push('d');
             }
 
-            _ => state.vi_chord.clear(),
+            _ => state.input_field.vi_kseq.clear(),
         },
 
-        (ViMode::Normal, KCode::Char(c), _) if matches!(state.vi_chord.first(), Some('r')) => {
-            state.vi_chord.clear();
+        (ViMode::Normal, KCode::Char(c), _) if matches!(state.input_field.vi_kseq.first(), Some('r')) => {
+            state.input_field.vi_kseq.clear();
 
             if state.search_cursor_index < state.search_buffer.len() {
                 state.search_buffer.remove(state.search_cursor_index);
@@ -136,28 +136,28 @@ pub fn handle_inputs(state: &mut TuiState) -> ah::Result<()> {
         }
 
         (ViMode::Normal, KCode::Char('r'), KMods::NONE) => {
-            if state.vi_chord.is_empty() {
-                state.vi_chord.push('r');
+            if state.input_field.vi_kseq.is_empty() {
+                state.input_field.vi_kseq.push('r');
             }
         }
 
-        (ViMode::Normal, KCode::Char('c'), KMods::NONE) => match state.vi_chord.first() {
+        (ViMode::Normal, KCode::Char('c'), KMods::NONE) => match state.input_field.vi_kseq.first() {
             Some('c') => {
                 state.search_buffer.clear();
-                state.vi_chord.clear();
+                state.input_field.vi_kseq.clear();
                 state.search_cursor_index = 0;
             }
             None => {
-                state.vi_chord.push('c');
+                state.input_field.vi_kseq.push('c');
             }
 
-            _ => state.vi_chord.clear(),
+            _ => state.input_field.vi_kseq.clear(),
         },
 
         (ViMode::Normal, KCode::Char('w'), KMods::NONE)
-            if matches!(state.vi_chord.first(), Some('d') | Some('c')) =>
+            if matches!(state.input_field.vi_kseq.first(), Some('d') | Some('c')) =>
         {
-            let change = state.vi_chord.first().is_some_and(|&c| c == 'c');
+            let change = state.input_field.vi_kseq.first().is_some_and(|&c| c == 'c');
 
             let buf = &mut state.search_buffer;
             let idx = state.search_cursor_index;
@@ -179,14 +179,14 @@ pub fn handle_inputs(state: &mut TuiState) -> ah::Result<()> {
             }
 
             if change {
-                state.vi_mode = ViMode::Insert;
+                state.input_field.vi_mode = ViMode::Insert;
             }
 
-            state.vi_chord.clear();
+            state.input_field.vi_kseq.clear();
         }
 
         (ViMode::Normal, KCode::Char('b'), KMods::NONE)
-            if matches!(state.vi_chord.first(), Some('d') | Some('c')) =>
+            if matches!(state.input_field.vi_kseq.first(), Some('d') | Some('c')) =>
         {
             let buf = &mut state.search_buffer;
             let idx = state.search_cursor_index;
@@ -202,54 +202,88 @@ pub fn handle_inputs(state: &mut TuiState) -> ah::Result<()> {
 
             state.search_cursor_index = new_idx;
 
-            if matches!(state.vi_chord.first(), Some('c')) {
-                state.vi_mode = ViMode::Insert;
+            if matches!(state.input_field.vi_kseq.first(), Some('c')) {
+                state.input_field.vi_mode = ViMode::Insert;
             }
 
-            state.vi_chord.clear();
+            state.input_field.vi_kseq.clear();
         }
 
         (ViMode::Normal, KCode::Char('e'), KMods::NONE)
-            if matches!(state.vi_chord.first(), Some('g')) =>
+            if matches!(state.input_field.vi_kseq.first(), Some('g')) =>
         {
-            state.vi_chord.clear();
+            state.input_field.vi_kseq.clear();
 
             state.search_cursor_index =
                 motion_word(&state.search_buffer, state.search_cursor_index, true, true);
         }
 
-        (ViMode::Normal, KCode::Char('g'), KMods::NONE) if state.vi_chord.is_empty() => {
-            state.vi_chord.push('g');
+        (ViMode::Normal, KCode::Char('g'), KMods::NONE) if state.input_field.vi_kseq.is_empty() => {
+            state.input_field.vi_kseq.push('g');
         }
 
-        (ViMode::Normal, KCode::Char('c'), KMods::NONE) => match state.vi_chord.first() {
+        (ViMode::Normal, KCode::Char('c'), KMods::NONE) => match state.input_field.vi_kseq.first() {
             Some('c') => {
                 state.search_buffer.clear();
-                state.vi_chord.clear();
+                state.input_field.vi_kseq.clear();
                 state.search_cursor_index = 0;
-                state.vi_mode = ViMode::Insert;
+                state.input_field.vi_mode = ViMode::Insert;
             }
-            Some(_) => state.vi_chord.clear(),
+            Some(_) => state.input_field.vi_kseq.clear(),
             None => {
-                state.vi_chord.push('c');
+                state.input_field.vi_kseq.push('c');
             }
         },
 
         // If there's a pending chord that did not progress, clear it.
         // --------------------------------------------------------------------
-        (ViMode::Normal, _, KMods::NONE) if !state.vi_chord.is_empty() => {
-            state.vi_chord.clear();
+        (ViMode::Normal, _, KMods::NONE) if !state.input_field.vi_kseq.is_empty() => {
+            state.input_field.vi_kseq.clear();
         }
 
         // --------------------------------------------------------------------
+        (ViMode::Normal, KCode::Char('k'), KMods::NONE) => {
+            state.preview_jump = false;
+            let start_line = &mut state.preview_viewport.start_line;
 
-        (ViMode::Normal, KCode::Char('n'), KMods::NONE) => {
-            if state.search_result_index + 1 > state.search_results.len() {
-                state.search_result_index = 0
-            } else {
-                state.search_result_index += 1
+            if *start_line != 0 {
+                *start_line -= 1;
             }
         }
+
+        // Scroll up in the preview by decreasing offset.
+        (ViMode::Normal, KCode::Char('j'), KMods::NONE) => {
+            state.preview_jump = false;
+            let start_line = &mut state.preview_viewport.start_line;
+            let end_line = (*start_line + 1) + (state.preview_viewport.context * 2);
+
+            if end_line < state.doc_lines.len()+1 {
+                *start_line += 1;
+            }
+        }
+
+        (ViMode::Normal, KCode::Char('n'), KMods::NONE) => {
+            if (state.search_result_index + 1) < state.search_results.len() {
+                state.search_result_index += 1
+            } else {
+                state.search_result_index = 0
+            }
+
+            state.preview_jump = true;
+        }
+
+        // Go to the bottom of 
+        (ViMode::Normal, KCode::Char('G'), KMods::NONE) => {
+            state.preview_jump = false;
+            let start_line = &mut state.preview_viewport.start_line;
+            let end_line = (*start_line + 1) + (state.preview_viewport.context * 2);
+
+            if end_line < state.doc_lines.len()+1 {
+                *start_line += 1;
+            }
+        }
+
+
 
         (ViMode::Normal, KCode::Char('N'), KMods::SHIFT) => {
             if state.search_result_index > 0 {
@@ -257,8 +291,9 @@ pub fn handle_inputs(state: &mut TuiState) -> ah::Result<()> {
             } else {
                 state.search_result_index = state.search_results.len() - 1;
             }
-        }
 
+            state.preview_jump = true;
+        }
 
         (ViMode::Normal, KCode::Char('q'), KMods::NONE) => {
             state.el_kill = true;
@@ -266,7 +301,7 @@ pub fn handle_inputs(state: &mut TuiState) -> ah::Result<()> {
         }
 
         (ViMode::Normal, KCode::Char('i'), KMods::NONE) => {
-            state.vi_mode = ViMode::Insert;
+            state.input_field.vi_mode = ViMode::Insert;
         }
 
         (ViMode::Normal, KCode::Char('h'), KMods::NONE) => {
@@ -311,7 +346,7 @@ pub fn handle_inputs(state: &mut TuiState) -> ah::Result<()> {
 
         (ViMode::Normal, KCode::Char('C'), KMods::SHIFT) => {
             state.search_buffer.truncate(state.search_cursor_index);
-            state.vi_mode = ViMode::Insert;
+            state.input_field.vi_mode = ViMode::Insert;
         }
 
         (ViMode::Normal, KCode::Char('D'), KMods::SHIFT) => {
@@ -328,7 +363,7 @@ pub fn handle_inputs(state: &mut TuiState) -> ah::Result<()> {
 
         (ViMode::Normal, KCode::Char('A'), KMods::SHIFT) => {
             state.search_cursor_index = state.search_buffer.len();
-            state.vi_mode = ViMode::Insert;
+            state.input_field.vi_mode = ViMode::Insert;
         }
 
         (ViMode::Normal, KCode::Char('a'), KMods::NONE) => {
@@ -338,7 +373,7 @@ pub fn handle_inputs(state: &mut TuiState) -> ah::Result<()> {
                 state.search_buffer.push(' ');
             }
 
-            state.vi_mode = ViMode::Insert;
+            state.input_field.vi_mode = ViMode::Insert;
         }
 
         (ViMode::Normal, KCode::Char('b'), KMods::NONE) => {
