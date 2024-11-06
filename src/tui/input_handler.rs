@@ -1,8 +1,7 @@
 use std::sync::atomic::Ordering;
 
-use super::event_loop::TuiState;
 
-use crate::tui::widgets::input_field::ViMode;
+use crate::tui::components::input_field::ViMode;
 
 use std::time::Duration;
 
@@ -257,7 +256,7 @@ pub fn handle_inputs(state: &mut TuiState) -> ah::Result<()> {
             let start_line = &mut state.preview_viewport.start_line;
             let end_line = (*start_line + 1) + (state.preview_viewport.context * 2);
 
-            if end_line < state.doc_lines.len()+1 {
+            if end_line < state.markdown_lines.len()+1 {
                 *start_line += 1;
             }
         }
@@ -278,7 +277,7 @@ pub fn handle_inputs(state: &mut TuiState) -> ah::Result<()> {
             let start_line = &mut state.preview_viewport.start_line;
             let end_line = (*start_line + 1) + (state.preview_viewport.context * 2);
 
-            if end_line < state.doc_lines.len()+1 {
+            if end_line < state.markdown_lines.len()+1 {
                 *start_line += 1;
             }
         }
@@ -296,8 +295,8 @@ pub fn handle_inputs(state: &mut TuiState) -> ah::Result<()> {
         }
 
         (ViMode::Normal, KCode::Char('q'), KMods::NONE) => {
-            state.el_kill = true;
-            state.st_kill.store(true, Ordering::SeqCst);
+            state.kill_event_loop = true;
+            state.kill_se_thread.store(true, Ordering::SeqCst);
         }
 
         (ViMode::Normal, KCode::Char('i'), KMods::NONE) => {

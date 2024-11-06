@@ -4,10 +4,14 @@ use super::*;
 
 // Renders the search input field.
 
-use crate::tui::event_loop::{TuiState};
+use crate::tui::event_loop::TuiState;
 
 use crossterm::{
-    cursor::MoveToNextLine, event::KeyCode, queue, style::{Color, Colors, Print, ResetColor, SetBackgroundColor, SetForegroundColor}, terminal::{Clear, ClearType}
+    cursor::MoveToNextLine,
+    event::KeyCode,
+    queue,
+    style::{Color, Colors, Print, ResetColor, SetBackgroundColor, SetForegroundColor},
+    terminal::{Clear, ClearType},
 };
 
 #[derive(Clone, Debug, Default)]
@@ -16,10 +20,9 @@ pub struct ViewPort {
     pub context: usize,
 }
 
-
 pub fn render_previewer(state: &mut TuiState) -> ah::Result<()> {
     let dimensions = &state.terminal_size;
-    let separator = BHCL.to_string().repeat(dimensions.1 as usize);
+    let separator = boxchars::BHCL.to_string().repeat(dimensions.1 as usize);
     let no_search_results = state.search_results.is_empty();
 
     let matched_row: Option<usize> = state
@@ -36,8 +39,6 @@ pub fn render_previewer(state: &mut TuiState) -> ah::Result<()> {
 
             start = *row as isize - context as isize;
             end = *row as isize + context as isize;
-
-            
 
             if start < 0 {
                 end += start.abs();
@@ -105,9 +106,7 @@ pub fn render_previewer(state: &mut TuiState) -> ah::Result<()> {
                 ResetColor,
                 MoveToNextLine(1),
             )?;
-        } 
-
-        else if state.search_results.iter().any(|(row, _)| row == num) {
+        } else if state.search_results.iter().any(|(row, _)| row == num) {
             queue!(
                 std::io::stdout(),
                 // SetBackgroundColor(Color::DarkGrey),
@@ -117,9 +116,7 @@ pub fn render_previewer(state: &mut TuiState) -> ah::Result<()> {
                 ResetColor,
                 MoveToNextLine(1),
             )?;
-        }
-
-        else {
+        } else {
             queue!(
                 std::io::stdout(),
                 Clear(ClearType::CurrentLine),

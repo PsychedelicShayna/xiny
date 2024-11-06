@@ -1,15 +1,18 @@
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
+use std::io::stdout;
 use std::rc::Rc;
 
-use super::event_loop::TuiState;
+use super::point::Point;
 
 use anyhow as ah;
 use crossterm::event::Event;
 
+use crossterm::{self as ct, execute};
+
 #[derive(Debug, Clone)]
 pub enum DrawError {
-    NoSpace { need: (u16, u16), have: (u16, u16) },
-    DrawingDisabled
+    NoSpace { need: Point, have: Point },
+    DrawingDisabled,
 }
 
 impl Display for DrawError {
@@ -18,19 +21,27 @@ impl Display for DrawError {
             Self::NoSpace { need, have } => {
                 write!(
                     f,
-                    "Require {}x{} to draw, but terminal only has {}x{}",
-                    need.0, need.1, have.0, have.1
+                    "Require {} to draw, but terminal only has {}",
+                    need, have
                 )
             }
             DrawError::DrawingDisabled => todo!(),
-
         }
     }
 }
 
-pub trait Widget {
-    fn new(parent: Rc<TuiState>) -> Self;
+/// Checks if the cursor is out of bounds, and resets to the top left, and if
+/// that works, then se it to the bottom left.
+pub fn cursor_ok() -> bool {
+    ct::cursor::position().is_ok()
+}
 
+pub fn cursor_reset() -> ah::Result<()> {
+    execute!(stdout(), ct::cursor::MoveTo(0, 0))?;
+    Ok(())
+}
+
+pub trait Component: Debug {
     /// Must queue! the commands needed to draw itself using crossterm.
     fn queue_draws(&self) -> ah::Result<()>;
 
@@ -45,9 +56,9 @@ pub trait Widget {
 
     /// Return the rows and columns strictly necessary to draw this widget.
     /// If there isn't at least this much available, then it can't draw.
-    fn get_min_size(&self) -> (u16, u16);
+    fn get_min_size(&self) -> Point;
 
     /// Return the actual amount of rows and columns this widget would like
     /// to occupy, based on its internal state, and the state of the parent.
-    fn get_size(&self) -> (u16, u16);
+    fn get_size(&self) -> Point;
 }

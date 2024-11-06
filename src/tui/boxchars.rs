@@ -1,0 +1,11 @@
+pub const BHCL: char = '─';
+pub const BHJL: char = '┤';
+pub const BHJO: char = '┼';
+pub const BHJR: char = '├';
+pub const BVCL: char = '│';
+pub const BVJD: char = '┬';
+pub const BVJU: char = '┴';
+pub const BCTL: char = '┐';
+pub const BCBL: char = '└';
+pub const BCTR: char = '┌';
+pub const BCBR: char = '┘';

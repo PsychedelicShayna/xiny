@@ -1,18 +1,6 @@
-use std::fmt::{Display, Formatter};
+use point::Point;
 
 use super::*;
-use crate::tui::event_loop::TuiState;
-
-use super::widget::Widget;
-
-use crossterm::{
-    cursor::MoveToNextLine,
-    event::KeyCode,
-    queue,
-    style::{Color, Print},
-    terminal::{Clear, ClearType},
-};
-use widget::DrawError;
 
 #[derive(Debug, Clone)]
 pub enum ViMode {
@@ -39,23 +27,10 @@ impl Default for ViMode {
 pub struct InputField {
     pub vi_mode: ViMode,
     pub vi_kseq: Vec<char>,
-
-    parent: Rc<TuiState>,
-
-    /// The fg, bg colors of the virtual cursor.
-    vcursor_color: (Color, Color),
-
-    /// The index of the virtual cursor in the buffer. This is not the actual
-    /// terminal cursor, the character at this position is just colorized.
+    vcursor_color: Colors,
     vcursor_idx: usize,
-
-    /// The buffer storing the typed input.
     buffer: String,
-
-    /// The prefix string to display before the user's input, e.g. "> "
     prompt: String,
-
-    /// If set to false, the entire widget is deactivated / will not draw.
     enabled: bool,
 }
 
@@ -63,11 +38,13 @@ impl Default for InputField {
     fn default() -> Self {
         Self {
             vi_mode: ViMode::default(),
-            vi_kseq: Vec::new(),
-            parent: Rc::default(),
+            vi_kseq: Vec::default(),
             prompt: "> ".into(),
             buffer: String::new(),
-            vcursor_color: (Color::Black, Color::White),
+            vcursor_color: Colors {
+                foreground: Some(Color::Black),
+                background: Some(Color::White),
+            },
             vcursor_idx: 0,
             enabled: true,
         }
@@ -75,40 +52,22 @@ impl Default for InputField {
 }
 
 impl InputField {
-   pub fn format_text(&self) -> String {
+    pub fn format_text(&self) -> String {
         format!("[{}] {}{}", self.vi_mode, self.prompt, self.buffer)
-    } 
+    }
 }
 
-impl Widget for InputField {
-    fn new(parent: Rc<TuiState>) -> Self {
-        Self {
-            parent,
-            ..Default::default()
-        }
-    }
-
+impl Component for InputField {
     fn queue_draws(&self) -> ah::Result<()> {
         if !self.enabled {
             ah::bail!(DrawError::DrawingDisabled);
         }
 
-        let tsize @ (trows, tcols) = self.parent.terminal_size;
-        let msize @ (mrows, mcols) = self.get_min_size();
-        let (_, pcols) = self.get_size();
-
-        if trows <= mrows || tcols <= mcols {
-            ah::bail!(DrawError::NoSpace {
-                have: tsize,
-                need: msize,
-            });
-        }
-
         queue!(
             stdout(),
             Clear(ClearType::CurrentLine),
-            Print(BCTL),
-            Print(BHCL.to_string().repeat(pcols as usize)),
+            Print(boxchars::BCTL),
+            Print(boxchars::BHCL.to_string().repeat(pref_size.col as usize)),
             MoveToNextLine(1),
         )?;
 
@@ -122,30 +81,25 @@ impl Widget for InputField {
         queue!(
             stdout(),
             Clear(ClearType::CurrentLine),
-            Print(BCBL),
-            Print(BHCL.to_string().repeat(pcols as usize)),
+            Print(boxchars::BCBL),
+            Print(boxchars::BHCL.to_string().repeat(pref_size.col as usize)),
             MoveToNextLine(1),
         )?;
 
         Ok(())
     }
 
-
     fn queue_clear(&self) -> anyhow::Result<()> {
         if !self.enabled {
             ah::bail!(DrawError::DrawingDisabled);
         }
 
-        let tsize @ (trows, tcols) = self.parent.terminal_size;
-        let msize @ (mrows, mcols) = self.get_min_size();
-        let (prows, _) = self.get_size();
+        let term_size = self.parent.terminal_size;
+        let min_size = self.get_min_size();
+        let pref_size = self.get_size();
 
-        for _ in 0..prows.max(trows) {
-            queue!(
-                stdout(),
-                Clear(ClearType::CurrentLine),
-                MoveToNextLine(1),
-            )?;
+        for _ in 0..pref_size.row.max(term_size.row) {
+            queue!(stdout(), Clear(ClearType::CurrentLine), MoveToNextLine(1),)?;
         }
 
         Ok(())
@@ -153,19 +107,18 @@ impl Widget for InputField {
 
     fn handle_event(&mut self, event: Event) -> anyhow::Result<()> {
         match event {
-            Event::Key(key_event) => {
-
-            }
+            Event::Key(key_event) => {}
 
             Event::Resize(tcols, trows) => {
-                let (mrows, mcols) = self.get_min_size();
+                let min_size = self.get_min_size();
+                let term_size = self.parent.terminal_size;
 
-                if trows < mrows || tcols < mcols {
+                if term_size.row < min_size.row || term_size.col < min_size.col {
                     self.set_enabled(false);
                 } else {
                     self.set_enabled(true);
                 }
-           }
+            }
 
             _ => {}
         }
@@ -177,18 +130,19 @@ impl Widget for InputField {
         self.enabled = enabled;
     }
 
-    fn get_size(&self) -> (u16, u16) {
-        (3u16, 36u16)
+    fn get_size(&self) -> Point {
+        // (3u16, 36u16)
+        todo!()
     }
 
-    fn get_min_size(&self) -> (u16, u16) {
-        let (_, tcols) = self.parent.terminal_size;
+    fn get_min_size(&self) -> Point {
+        let minimum_rows = 3u16;
+        let minimum_cols = self.format_text().len() as u16;
 
-        // Cannot concede on needing 3 rows.
-        let mrows = 3u16;
-        let mcols = self.format_text().len() as u16;
-
-        (mrows, mcols)
+        Point {
+            col: minimum_cols,
+            row: minimum_rows,
+        }
     }
 }
 

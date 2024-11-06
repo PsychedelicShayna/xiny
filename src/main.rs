@@ -2,6 +2,7 @@ use std::{io, time::Instant};
 use std::process::exit;
 
 use anyhow::{self as ah, Context};
+use crossterm as ct;
 use argparse::CliArgs;
 use clap::{CommandFactory, Parser};
 use config::parser::*;
@@ -11,7 +12,9 @@ pub mod config;
 pub mod database;
 pub mod language;
 pub mod render;
-pub mod search;
+// pub mod search;
+pub mod search_engines;
+
 pub mod tui;
 pub mod utils;
 pub mod debug;
@@ -20,9 +23,8 @@ use database::database::XinY;
 use database::repository::Repo;
 use fuzzy_matcher::FuzzyMatcher;
 use language::language::Language;
-use search::engines::{fuzzy::FuzzySearch, regex::RegexSearch, terms::TermSearch};
-use tui::event_loop::{self, TuiState};
-use utils::Dimensions;
+// use search::engines::{fuzzy::FuzzySearch, regex::RegexSearch, terms::TermSearch};
+// use tui::event_loop::{self, TuiState};
 
 // fn get_terminal_size() -> (usize, usize) {
 //     let (width, height) = term_size::dimensions().unwrap_or((80, 24));
@@ -79,7 +81,6 @@ fn main() -> ah::Result<()> {
     unsafe { debug::START_TIME = Some(Instant::now()); }
 
 
-    let (w, h) = utils::Dimensions::from_terminal()?.unpack();
     let mut config = ConfigFile::new().unwrap();
 
     let repo = Repo::new(&config.values.repo, &config.values.branch).unwrap();
@@ -160,10 +161,11 @@ fn main() -> ah::Result<()> {
             let longest = subjects.iter().map(|s| s.len()).max().unwrap_or(0);
             let padding = longest + 2;
 
-            let Some((w, _)) = term_size::dimensions() else {
+            let Ok((cols, _)) = ct::terminal::size() else {
                 exit(1)
             };
-            let wrap_limit = w / padding;
+
+            let wrap_limit = cols as usize / padding;
 
             let mut wrap_counter = 1;
 
@@ -190,8 +192,8 @@ fn main() -> ah::Result<()> {
             let longest = langs.iter().map(|l| l.tag.len()).max().unwrap_or(0);
             let padding = longest + 2;
 
-            let (rows, _) = Dimensions::from_terminal()?.unpack();
-            let wrap_limit = (rows / padding) % 8;
+            let (rows, _) = ct::terminal::size()?;
+            let wrap_limit = (rows as usize / padding) % 8;
 
             let mut wrap_counter = 1;
 
@@ -250,13 +252,14 @@ fn main() -> ah::Result<()> {
         let renderer = (!config.values.renderer.is_empty()).then_some(config.values.renderer);
 
         if cli.interactive {
-            if cli.fuzzy {
-                event_loop::event_loop::<FuzzySearch>(document_path.to_path_buf())?;
-            } else if cli.regex {
-                event_loop::event_loop::<RegexSearch>(document_path.to_path_buf())?;
-            } else {
-                event_loop::event_loop::<TermSearch>(document_path.to_path_buf())?;
-            }
+
+            // if cli.fuzzy {
+            //     event_loop::event_loop::<FuzzySearch>(document_path.to_path_buf())?;
+            // } else if cli.regex {
+            //     event_loop::event_loop::<RegexSearch>(document_path.to_path_buf())?;
+            // } else {
+            //     event_loop::event_loop::<TermSearch>(document_path.to_path_buf())?;
+            // }
         } else if let Err(e) = render::print_document(document_path, renderer.as_deref()) {
             eprintln!("Error rendering document: {:?}", e);
             exit(1);

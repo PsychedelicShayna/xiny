@@ -1,6 +1,6 @@
-use event_loop::TuiState;
-
-pub mod event_loop;
+pub mod tui;
 pub mod input_handler;
-pub mod widgets;
-pub mod widget;
+pub mod components;
+pub mod component;
+pub mod point;
+pub mod boxchars;

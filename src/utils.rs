@@ -12,12 +12,11 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, is_raw_mode_enabled},
 };
 
-use term_size;
-
-#[derive(Debug, Clone, Default)]
-pub struct Dimensions {
-    pub width: usize,
-    pub height: usize,
+pub fn percentage_of_columns(percent: f64) -> ah::Result<usize> {
+    let terminal_size = ct::terminal::size()?;
+    let avail_cols = terminal_size.0;
+    let column = ((percent as f64 * avail_cols as f64) / 100.0).floor() as usize;
+    Ok(column)
 }
 
 pub fn crc32(data: &Vec<u8>) -> String {
@@ -35,35 +34,6 @@ pub fn read_lines(path: &PathBuf) -> ah::Result<Vec<String>> {
     .lines()
     .filter_map(Result::ok)
     .collect())
-}
-
-impl Dimensions {
-    pub fn from_terminal() -> ah::Result<Self> {
-        let (width, height) = term_size::dimensions()
-            .ok_or_else(|| ah::anyhow!("Failed to get terminal dimensions"))?;
-
-        Ok(Self { width, height })
-    }
-
-    pub fn unpack(&self) -> (usize, usize) {
-        (self.width, self.height)
-    }
-
-    pub fn width(&self) -> usize {
-        self.width
-    }
-
-    pub fn height(&self) -> usize {
-        self.height
-    }
-
-    pub fn rows(&self) -> usize {
-        self.height
-    }
-
-    pub fn cols(&self) -> usize {
-        self.width
-    }
 }
 
 /// Count the amount of lines in a file.
