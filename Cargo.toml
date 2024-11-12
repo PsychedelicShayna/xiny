@@ -9,7 +9,7 @@ readme = "README.md"
 exclude = [
   ".github",
   "target",
-  "src/"
+  "src.reserved/"
 ]
 
 repository = "https://github.com/PsychedelicShayna/xiny"
