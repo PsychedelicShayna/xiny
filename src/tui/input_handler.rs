@@ -1,6 +1,5 @@
 use std::sync::atomic::Ordering;
 
-
 use crate::tui::components::input_field::ViMode;
 
 use std::time::Duration;
@@ -25,6 +24,9 @@ fn find_words(string: &str) -> Vec<(usize, usize)> {
             in_word = true;
         }
     }
+
+
+
 
     if in_word {
         word_indicies.push((start, string.len() - 1));

@@ -136,8 +136,29 @@ only difference being the match is highlighted."
         requires_if("interactive", "explicit_subject"),
         requires_if("interactive", "implicit_subject"),
         conflicts_with("find"),
-        help = "An interactive version of find; type, see and select matches interactively in a TUI
-popup (see --help)"
+        help = "An interactive TUI to skim through the subject; popup (see --help)",
+        long_help = "Opens a TUI window below the cursor that lets you quickly find specific parts you're interested in
+Vim Motions enabled by default, can be disabled with --carpel-tunnel. While in normal mode, most of what you'd expect
+is implemented, on top of application specific bindings.
+
+Standard 
+    Motions : h, l, w, b, e, ge, W, B, 0, $, f, F, ;, t, T, gg, G, 
+    Actions : d, c, y, x, D, C, cc, dd, r, R
+
+    Most but not all motions can be prformed in insert mode
+    by just holding alt, e.g. Alt+b in insert mode.
+
+Nonstandard:
+    j and k scroll the preview buffer, and <C-d>, <C-u> scroll half a page.
+    n and N cycles through matches in the preview.
+    > and < increase/decrease size of preview window (horizontally)
+    + and - same as the above, but vertically.
+    gg and G go to the top/bottom of the preview.
+
+    H and L will cycle between search engines.
+
+In insert mode, the preview gets updated as you type (debounce set via --debounce). 
+"
     )]
     pub interactive: bool,
 
@@ -192,6 +213,25 @@ matches are derived from similarity."
         help = "Pulls changes from the remote repository if the local repository is behind."
     )]
     pub sync: bool,
+
+    // CARPEL TUNNEL MODE 
+    // ================================================================================================================
+    #[arg(
+        long = "rsi",
+        requires = "interactive",
+        help = "Disables Vim motions in the interactive TUI, still has some basic arrow key navigation with Ctrl."
+    )]
+    pub rsi: bool,
+
+    // DEBOUNCE
+    // ================================================================================================================
+    #[arg(
+        long = "debounce",
+        requires = "interactive",
+        default_value = "224",
+        help = "While in interactive mode, how many milliseconds after the last keypress should the query be considered complete, and sent to the search thread."
+    )]
+    pub debounce: u32,
 
     // RECLONE
     // ================================================================================================================

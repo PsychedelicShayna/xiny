@@ -5,6 +5,39 @@ use std::{
     path::PathBuf,
 };
 
+/// Makes it easier to use saturating operations.
+#[macro_export]
+macro_rules! sat {
+    (+ ($variable:expr, $value:expr)) => {
+        $variable.saturating_add($value)
+    };
+    (- ($variable:expr, $value:expr)) => {
+        $variable.satutating_sub($value)
+    };
+    (* ($variable:expr, $value:expr)) => {
+        $variable.saturating_mul($value)
+    };
+    (/ ($variable:expr, $value:expr)) => {
+        $variable.saturating_div($value)
+    };
+
+    (+= ($variable:expr, $value:expr)) => {
+        $variable = $variable.saturating_add($value)
+    };
+
+    (-= ($variable:expr, $value:expr)) => {
+        $variable = $variable.saturating_sub($value)
+    };
+
+    (*= ($variable:expr, $value:expr)) => {
+        $variable = $variable.saturating_mul($value)
+    };
+
+    (/= ($variable:expr, $value:expr)) => {
+        $variable = $variable.saturating_div($value)
+    };
+}
+
 use anyhow::{self as ah, Context};
 use crossterm::{
     self as ct,

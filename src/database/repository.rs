@@ -124,16 +124,24 @@ impl Repo {
     }
 
     pub fn pull(&self) -> ah::Result<()> {
-        let _ = shell(
-            "git",
-            vec![
-                "--git-dir",
-                &self.git_dir.display().to_string(),
-                "fetch",
-                "origin",
-                &self.branch,
-            ],
-        )?;
+        let x = self.git_dir.display().to_string();
+        let args = vec!["--git-dir", &x, "pull", "origin", &self.branch];
+
+        println!("{:?}", args.join(" "));
+
+        // let command = std::process::Command::new("git").args(args);
+
+
+        // let _ = shell(
+        //     "git",
+        //     vec![
+        //         "--git-dir",
+        //         &self.git_dir.display().to_string(),
+        //         "pull",
+        //         "origin",
+        //         &self.branch,
+        //     ],
+        // )?;
 
         Ok(())
     }

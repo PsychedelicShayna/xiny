@@ -1,4 +1,4 @@
-use std::fmt::{Display, Formatter};
+use std::{fmt::{Display, Formatter}, ops::Sub};
 
 /// Exists to disambiguate tuples holding col/row values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -10,6 +10,17 @@ pub struct Point {
 impl Display for Point {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}x{}", self.col, self.row)
+    }
+}
+
+impl Sub for Point {
+    type Output = Point;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Point {
+            row: self.row.max(rhs.row) - self.row.min(rhs.row),
+            col: self.col.max(rhs.col) - self.col.min(rhs.col),
+        }
     }
 }
 

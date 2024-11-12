@@ -5,7 +5,7 @@ use std::rc::Rc;
 use super::point::Point;
 
 use anyhow as ah;
-use crossterm::event::Event;
+use crossterm::event::{Event, KeyEvent};
 
 use crossterm::{self as ct, execute};
 
@@ -49,7 +49,7 @@ pub trait Component: Debug {
     fn queue_clear(&self) -> ah::Result<()>;
 
     /// Must be able to handle events thrown its way, and update itself.
-    fn handle_event(&mut self, event: Event) -> ah::Result<()>;
+    fn handle_input(&mut self, event: KeyEvent) -> ah::Result<()>;
 
     /// Enable this widget; if disabled, does not render, clear, or respond.
     fn set_enabled(&mut self, enabled: bool);

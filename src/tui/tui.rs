@@ -4,19 +4,29 @@ use std::hash::Hash;
 use std::hash::Hasher;
 use std::io::stdout;
 use std::io::Cursor;
+use std::io::Write;
 use std::path::PathBuf;
 use std::process::abort;
 use std::rc::Rc;
+use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 
 use cb::channel::unbounded;
+use crossbeam::channel::Receiver;
 use crossterm::cursor;
 use crossterm::cursor::Hide;
+use crossterm::cursor::MoveTo;
+use crossterm::cursor::MoveToNextLine;
 use crossterm::cursor::Show;
 use crossterm::event::poll;
+use crossterm::event::KeyEvent;
 use crossterm::event::{self as cte, Event};
+use crossterm::execute;
+use crossterm::queue;
 use crossterm::terminal::disable_raw_mode;
 use crossterm::terminal::enable_raw_mode;
+use crossterm::terminal::Clear;
+use crossterm::terminal::ClearType;
 use crossterm::ExecutableCommand;
 use debug::*;
 use phf::set::Iter;
@@ -33,7 +43,7 @@ use anyhow as ah;
 use anyhow::Context;
 
 use super::components::input_field::*;
-use super::input_handler;
+// use super::input_handler;
 use crate::debug;
 use crate::log;
 use crate::search_engines::SearchEngine;
@@ -48,7 +58,7 @@ pub enum SearchThreadMessage {
     Kill,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Tui {
     pub opts: TuiOptions,
     pub terminal_size: Point,
@@ -60,14 +70,16 @@ pub struct Tui {
 
     // ---- Components ------------------------
     pub input_field: InputField,
+    pub input_field_rx: std::sync::mpsc::Receiver<InputFieldMessage>,
 }
 
 #[derive(Debug)]
 pub struct TuiOptions {
     /// How large, horizontally and veritcally, is the TUI allowed to before
     /// the UI components cut off.
-    max_dimensions: Point,
-    search_engine: SearchEngine,
+    pub max_dimensions: Point,
+    pub search_engine: SearchEngine,
+    pub rsi_mode: bool,
 }
 
 impl Default for TuiOptions {
@@ -78,20 +90,70 @@ impl Default for TuiOptions {
                 col: percentage_of_columns(37.0).unwrap_or(35) as u16,
             },
             search_engine: SearchEngine::Fuzzy,
+            rsi_mode: false,
         }
     }
 }
 
 impl Tui {
-    fn new(opts: TuiOptions) -> ah::Result<Self> {
-        let mut tui = Tui::default();
+    pub fn new(opts: TuiOptions) -> ah::Result<Self> {
+        let (mut input_field, input_field_rx) = InputField::new();
+        input_field.rsi = opts.rsi_mode;
+
+        let mut tui = Tui {
+            opts,
+            terminal_size: Point::from(ct::terminal::size()?),
+            thread_kill_tui: Arc::new(AtomicBool::new(false)),
+            thread_kill_search: Arc::new(AtomicBool::new(false)),
+            thread_jh_search: None,
+            input_field_rx,
+            input_field,
+        };
+
         tui.terminal_size = Point::from(ct::terminal::size()?);
-        tui.opts = opts;
+        tui.input_field.size = Point { row: 10, col: 36 };
+
         Ok(tui)
     }
 
-    pub fn start() -> ah::Result<()> {
+    pub fn start(&mut self) -> ah::Result<()> {
+        enable_raw_mode()?;
+        stdout().execute(Hide)?;
+
+        while !self.thread_kill_tui.load(Ordering::SeqCst) {
+            let event = ct::event::poll(Duration::from_millis(10))
+                .ok()
+                .and_then(|_| ct::event::read().ok());
+
+            if let Some(Event::Key(ke)) = event {
+                self.input_field.handle_input(ke)?;
+            }
+
+            self.input_field.queue_draws()?;
+            stdout().flush()?;
+            self.input_field.queue_clear()?;
+
+            if let Ok(msg) = self.input_field_rx.recv_timeout(Duration::from_millis(10)) {
+                match msg {
+                    InputFieldMessage::TuiStopSignal => self.stop(),
+                    InputFieldMessage::None => {}
+                }
+            }
+        }
+
+        stdout().execute(Show)?;
+        disable_raw_mode()?;
+
         Ok(())
+    }
+
+    pub fn stop(&mut self) {
+        self.thread_kill_tui.store(true, Ordering::SeqCst);
+        self.thread_kill_search.store(true, Ordering::SeqCst);
+
+        if let Some(handle) = self.thread_jh_search.take() {
+            handle.join().ok();
+        }
     }
 }
 

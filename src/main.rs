@@ -1,11 +1,11 @@
-use std::{io, time::Instant};
 use std::process::exit;
+use std::{io, time::Instant};
 
 use anyhow::{self as ah, Context};
-use crossterm as ct;
 use argparse::CliArgs;
 use clap::{CommandFactory, Parser};
 use config::parser::*;
+use crossterm as ct;
 
 pub mod argparse;
 pub mod config;
@@ -15,14 +15,20 @@ pub mod render;
 // pub mod search;
 pub mod search_engines;
 
-pub mod tui;
 pub mod utils;
+// pub mod tui;
 pub mod debug;
+pub mod tui;
+
 
 use database::database::XinY;
 use database::repository::Repo;
 use fuzzy_matcher::FuzzyMatcher;
 use language::language::Language;
+use search_engines::SearchEngine;
+use tui::point::Point;
+use tui::tui::{Tui, TuiOptions};
+use utils::percentage_of_columns;
 // use search::engines::{fuzzy::FuzzySearch, regex::RegexSearch, terms::TermSearch};
 // use tui::event_loop::{self, TuiState};
 
@@ -78,8 +84,9 @@ fn handle_get_conf(get_conf: &Vec<String>, conf: &mut ConfigFile) -> ah::Result<
 
 fn main() -> ah::Result<()> {
     #[cfg(debug_assertions)]
-    unsafe { debug::START_TIME = Some(Instant::now()); }
-
+    unsafe {
+        debug::START_TIME = Some(Instant::now());
+    }
 
     let mut config = ConfigFile::new().unwrap();
 
@@ -252,6 +259,11 @@ fn main() -> ah::Result<()> {
         let renderer = (!config.values.renderer.is_empty()).then_some(config.values.renderer);
 
         if cli.interactive {
+            let mut opts = TuiOptions::default();
+            opts.search_engine = SearchEngine::Fuzzy;
+            opts.rsi_mode = cli.rsi;
+            let mut tui = Tui::new(opts)?;
+            tui.start()?;
 
             // if cli.fuzzy {
             //     event_loop::event_loop::<FuzzySearch>(document_path.to_path_buf())?;
