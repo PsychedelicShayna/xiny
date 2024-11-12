@@ -278,6 +278,32 @@ impl InputField {
                 }
             }
 
+            (VimMode::Normal, KeyCode::Char('w'), KeyModifiers::NONE) => {
+                match self.vi_cseq.as_str() {
+                    "d" => {
+                        let next_word_start =
+                            motion_word(&self.buffer, self.cursor_index, false, false);
+
+                        let next_word_end =
+                            motion_word(&self.buffer, self.cursor_index, false, true);
+
+                        let new_buffer: String = self.buffer.clone()
+                            .chars()
+                            .enumerate()
+                            .take(next_word_start)
+                            .skip_while(|(i, c)| *i < next_word_end)
+                            .map(|(_, c)| c)
+                            .collect();
+
+                        self.buffer = new_buffer;
+                        self.vi_cseq.clear();
+                    }
+
+                    _ => self.vi_cseq.clear(),
+                }
+                self.vi_cseq.clear();
+            }
+
             _ if !self.vi_cseq.is_empty() => {
                 self.vi_cseq.clear();
                 return Ok(());
@@ -297,7 +323,7 @@ impl InputField {
                 self.tuitx.send(InputFieldMessage::TuiStopSignal)?;
             }
 
-            // H and L Navigation in normal mode 
+            // H and L Navigation in normal mode
             // ----------------------------------------------------------------
             (VimMode::Normal, KeyCode::Char('h'), KeyModifiers::NONE) => {
                 if self.cursor_index > 0 {
@@ -335,8 +361,6 @@ impl InputField {
                     }
                 }
             }
-
-
 
             (VimMode::Normal, KeyCode::Char('w'), KeyModifiers::NONE) => {
                 let index = motion_word(&self.buffer, self.cursor_index, false, false);
