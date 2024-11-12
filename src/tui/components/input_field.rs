@@ -1,6 +1,3 @@
-use std::iter::successors;
-use std::process::exit;
-
 use crossterm::ExecutableCommand;
 use cursor::{MoveToColumn, Show};
 use style::ResetColor;
@@ -263,6 +260,31 @@ impl InputField {
     /// Handle input events when Vim motions are enabled.
     fn handle_input_vim(&mut self, input_event: KeyEvent) -> ah::Result<()> {
         let mut cursor_position_in_window = self.cursor_index - self.window_start;
+        match (&self.vi_mode, input_event.code, input_event.modifiers) {
+            (VimMode::Normal, KeyCode::Char('d'), KeyModifiers::NONE) => {
+                match self.vi_cseq.as_str() {
+                    "d" => {
+                        self.buffer.clear();
+                        self.cursor_index = 0;
+                        self.window_start = 0;
+                        self.vi_cseq.clear();
+                    }
+                    "" => {
+                        self.vi_cseq.push('d');
+                    }
+                    _ => {
+                        self.vi_cseq.clear();
+                    }
+                }
+            }
+
+            _ if !self.vi_cseq.is_empty() => {
+                self.vi_cseq.clear();
+                return Ok(());
+            }
+
+            _ => self.vi_cseq.clear(),
+        }
 
         match (&self.vi_mode, input_event.code, input_event.modifiers) {
             (VimMode::Normal, KeyCode::Char('i'), KeyModifiers::NONE) => {
@@ -274,6 +296,9 @@ impl InputField {
             (VimMode::Normal, KeyCode::Char('q'), KeyModifiers::NONE) => {
                 self.tuitx.send(InputFieldMessage::TuiStopSignal)?;
             }
+
+            // H and L Navigation in normal mode 
+            // ----------------------------------------------------------------
             (VimMode::Normal, KeyCode::Char('h'), KeyModifiers::NONE) => {
                 if self.cursor_index > 0 {
                     self.cursor_index -= 1;
@@ -291,6 +316,28 @@ impl InputField {
                     }
                 }
             }
+            // H and L Navigation in insert mode via Alt+H and Alt+L
+            // ----------------------------------------------------------------
+            (VimMode::Insert, KeyCode::Char('h'), KeyModifiers::ALT) => {
+                if self.cursor_index > 0 {
+                    self.cursor_index -= 1;
+                    if cursor_position_in_window == 0 {
+                        self.window_start = self.window_start.saturating_sub(1);
+                    }
+                }
+            }
+            (VimMode::Insert, KeyCode::Char('l'), KeyModifiers::ALT) => {
+                if self.cursor_index < self.buffer.len() {
+                    self.cursor_index += 1;
+
+                    if cursor_position_in_window >= (self.size.col as usize - 1) {
+                        self.window_start += 1;
+                    }
+                }
+            }
+
+
+
             (VimMode::Normal, KeyCode::Char('w'), KeyModifiers::NONE) => {
                 let index = motion_word(&self.buffer, self.cursor_index, false, false);
 
@@ -398,6 +445,12 @@ impl InputField {
             }
 
             (VimMode::Normal, KeyCode::Char('x'), KeyModifiers::NONE) => {
+                if self.cursor_index < self.buffer.len() {
+                    self.buffer.remove(self.cursor_index);
+                }
+            }
+
+            (VimMode::Insert, KeyCode::Delete, KeyModifiers::NONE) => {
                 if self.cursor_index < self.buffer.len() {
                     self.buffer.remove(self.cursor_index);
                 }
