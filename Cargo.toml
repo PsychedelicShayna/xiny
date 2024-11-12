@@ -1,7 +1,22 @@
 [package]
 name = "xiny"
-version = "0.1.0"
+version = "0.0.0"
 edition = "2021"
+description = "Not Ready. Still in development, name reserved. Repo currently private. Look forward to the most convenient LearnXinYminutes CLI & TUI fuzy finder combo :)"
+license-file = "LICENSE"
+readme = "README.md"
+
+exclude = [
+  ".github",
+  "target",
+  "src/"
+]
+
+repository = "https://github.com/PsychedelicShayna/xiny"
+homepage = "https://github.com/PsychedelicShayna/xiny"
+
+categories = ["command-line-utilities", "command-line-interface"]
+keywords = ["xiny", "learnxiny", "tui", "cli", "reference" ]
 
 [dependencies]
 anyhow = "1.0.91"
