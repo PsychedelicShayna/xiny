@@ -2,10 +2,14 @@
 name = "xiny"
 version = "0.1.0"
 edition = "2021"
-description = "Read Learn X in Y Minutes docs in your terminal, in every language, with any Markdown viewer! The database is downloaded for you automatically! The only hard requirement is Git."
+description = "Offline CLI reader for Learn X in Y Minutes -- 187 subjects, 38 languages, rendered in your terminal"
 license = "GPL-3.0-or-later"
+readme = "README.md"
+
 repository = "https://github.com/PsychedelicShayna/xiny"
-keywords = ["learnxinyminutes", "docs", "cli", "cheatsheet"]
+homepage = "https://github.com/PsychedelicShayna/xiny"
+
+keywords = ["learnxinyminutes", "reference", "terminal", "cli", "cheatsheet"]
 categories = ["command-line-utilities", "development-tools"]
 
 [dependencies]
