@@ -8,7 +8,6 @@ use std::sync::atomic::Ordering;
 
 use super::input_handler;
 use super::render;
-use super::render::input_field;
 
 use crate::search::engines::SearchEngine;
 use crate::utils::Dimensions;
@@ -21,11 +20,9 @@ use std::time::Duration;
 
 use crossbeam as cb;
 
-use crossterm as ct;
 use crossterm::cursor;
 use crossterm::cursor::Hide;
 use crossterm::cursor::Show;
-use crossterm::event::{self as cte, Event};
 use crossterm::terminal::disable_raw_mode;
 use crossterm::terminal::enable_raw_mode;
 use crossterm::ExecutableCommand;

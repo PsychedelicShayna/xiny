@@ -9,7 +9,7 @@ impl SearchEngine for TermSearch {
     /// Search for the query in the given lines and return the line number and index of the first match.
     fn search(&mut self, lines: &Vec<(usize, String)>, query: &str) -> Vec<(usize, usize)> {
         let query = query.to_ascii_lowercase();
-        let terms = query.split_whitespace().collect::<Vec<&str>>();
+        let _terms = query.split_whitespace().collect::<Vec<&str>>();
 
         lines
             .into_iter()

@@ -1,37 +1,36 @@
-use std::ops::Deref;
 
 use super::*;
 
 // Renders the search input field.
 
-use crate::tui::event_loop::{TuiState, ViMode};
+use crate::tui::event_loop::TuiState;
 
 use crossterm::{
     cursor::MoveToNextLine,
     queue,
-    style::{Color, Colors, Print, ResetColor, SetBackgroundColor, SetForegroundColor},
+    style::{Color, Print, ResetColor, SetBackgroundColor, SetForegroundColor},
     terminal::{Clear, ClearType},
 };
 
-pub fn render_previewer(state: &TuiState, anchor: &(usize, usize)) -> ah::Result<()> {
+pub fn render_previewer(state: &TuiState, _anchor: &(usize, usize)) -> ah::Result<()> {
     let dims = &state.preview_dimensions;
 
-    let rows = dims.rows() as usize;
-    let cols = dims.cols() as usize;
+    let _rows = dims.rows() as usize;
+    let _cols = dims.cols() as usize;
 
     let separator = BHCL.to_string().repeat(36);
 
-    let mut no_results = state.search_results.is_empty();
+    let no_results = state.search_results.is_empty();
 
     let context = state.preview_context;
     let selected = state.search_result_index;
 
-    let (srow, scol) = match state.search_results.get(selected) {
+    let (srow, _scol) = match state.search_results.get(selected) {
         Some(s) => *s,
         None => (context, 0),
     };
 
-    let offset = &state.preview_offset;
+    let _offset = &state.preview_offset;
     let lines_to_show = context * 2 + 1;
 
     let percentage = if no_results {

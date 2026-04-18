@@ -15,8 +15,7 @@ impl Repo {
     pub fn new(clone_uri: &String, branch: &String) -> ah::Result<Self> {
         let repo_dir = dirs::data_local_dir()
             .context("Repo::new finding local data directory via dirs::data_local_dir()")?
-            .join("xiny")
-            .join("repo");
+            .join("xiny");
 
         if !repo_dir.exists() {
             fs::create_dir_all(&repo_dir)

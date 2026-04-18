@@ -91,8 +91,8 @@ pub fn handle_inputs(state: &mut TuiState) -> ah::Result<()> {
     // Same with the event's fields.
     let kmods = kevent.modifiers;
     let kcode = kevent.code;
-    let kkind = kevent.kind;
-    let kstate = kevent.state;
+    let _kkind = kevent.kind;
+    let _kstate = kevent.state;
 
     match (&state.vi_mode, kcode, kmods) {
         (ViMode::Insert, KCode::Esc | KCode::Enter, KMods::NONE) => {

@@ -4,4 +4,4 @@ pub mod event_loop;
 pub mod input_handler;
 pub mod render;
 
-pub fn render_components(state: &TuiState) {}
+pub fn render_components(_state: &TuiState) {}

@@ -1,4 +1,4 @@
-use clap::{command, ArgGroup, Parser};
+use clap::{ArgGroup, Parser};
 use clap_complete::Shell;
 
 #[derive(Parser, Debug)]
@@ -78,17 +78,17 @@ languages.",
         requires_if("find", "implicit_subject"),
         num_args(1..),
         value_name = "TERMS",
-        help = "Searches the subject document for the provivded terms and displays surrounding lines (see --help)",
-       long_help = "Searches the subject document for the provivded terms and displays lines surrounding the
+        help = "[NOT YET IMPLEMENTED] Searches the subject document for the provided terms and displays surrounding lines (see --help)",
+       long_help = "[NOT YET IMPLEMENTED] Searches the subject document for the provided terms and displays lines surrounding the
 match. The default behavior is quite basic; the document is searched line by line, and
 the line which contains the most search terms is selected as the match. The behavior can
 be configured using:
 
-     Flags               Options                    
-                                                          
-    --interactive        --context (default: 6)            
-    --vimgrep            --matches (default: 1)            
-    --regex              --case    (default: insensitive)  
+     Flags               Options
+
+    --interactive        --context (default: 6)
+    --vimgrep            --matches (default: 1)
+    --regex              --case    (default: insensitive)
     --fuzzy"
     )]
     pub find: Option<Vec<String>>,
@@ -103,8 +103,8 @@ be configured using:
         default_value = "6",
         num_args(1),
         value_name = "LINES",
-        help = "The number of lines to display before and after a --find match.",
-        long_help = "The number of lines to display before and after a --find match. To clarify, a value of 6
+        help = "[NOT YET IMPLEMENTED] The number of lines to display before and after a --find match.",
+        long_help = "[NOT YET IMPLEMENTED] The number of lines to display before and after a --find match. To clarify, a value of 6
 means you'll see 13 lines. That's 6 before the match, 6 after the match, plus the match
 itself; 6+6+1 = 13. This does not mean the total line count but how many lines before and
 ater the match. That means that the line number must be divisible by 2. You cannot have 5
@@ -124,7 +124,7 @@ only difference being the match is highlighted."
         default_value = "1",
         num_args(1),
         value_name = "AMOUNT",
-        help = "The number of --find matches to display. If set to 0, all matches are displayed."
+        help = "[NOT YET IMPLEMENTED] The number of --find matches to display. If set to 0, all matches are displayed."
     )]
     pub matches: Option<usize>,
 
@@ -136,8 +136,7 @@ only difference being the match is highlighted."
         requires_if("interactive", "explicit_subject"),
         requires_if("interactive", "implicit_subject"),
         conflicts_with("find"),
-        help = "An interactive version of find; type, see and select matches interactively in a TUI
-popup (see --help)"
+        help = "[EXPERIMENTAL / INCOMPLETE] An interactive version of find; type, see and select matches interactively in a TUI popup (see --help)"
     )]
     pub interactive: bool,
 
@@ -149,7 +148,7 @@ popup (see --help)"
         requires_if("regex", "find"),
         requires_if("regex", "interactive"),
         conflicts_with("fuzzy"),
-        help = "Enable Regex mode for --find; all terms will be treated as regular expressions (logical AND chain) --help for more info.",
+        help = "[NOT YET IMPLEMENTED] Enable Regex mode for --find; all terms will be treated as regular expressions (logical AND chain) --help for more info.",
         long_help = "Enable Regex mode for --find; all terms will be treated as regular expressions. Each
 expression will be attempted on each line, and if all expressions pass, then the line is
 added to the list of matches; a logical AND across all expressions. When several lines
@@ -169,8 +168,7 @@ need, then --fuzzy may be a better fit."
         requires_if("fuzzy", "find"),
         requires_if("fuzzy", "interactive"),
         conflicts_with("regex"),
-        help = "Enable FuzzyFind mode for --find; terms will be concatenated into one single query, and
-matches are derived from similarity."
+        help = "[NOT YET IMPLEMENTED] Enable FuzzyFind mode for --find; terms will be concatenated into one single query, and matches are derived from similarity."
     )]
     pub fuzzy: bool,
 

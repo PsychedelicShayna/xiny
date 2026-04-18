@@ -7,12 +7,12 @@ use crate::tui::event_loop::{TuiState, ViMode};
 use crossterm::{
     cursor::MoveToNextLine,
     queue,
-    style::{Color, Colors, Print, ResetColor, SetBackgroundColor, SetForegroundColor},
+    style::{Color, Print, ResetColor, SetBackgroundColor, SetForegroundColor},
     terminal::{Clear, ClearType},
 };
 
-pub fn render(state: &TuiState, anchor: &(usize, usize)) -> ah::Result<()> {
-    let sep1: char = '-';
+pub fn render(state: &TuiState, _anchor: &(usize, usize)) -> ah::Result<()> {
+    let _sep1: char = '-';
     let pref: &str = "> ";
     let sep = BHCL.to_string().repeat(36);
     let buf = &state.search_buffer;

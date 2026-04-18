@@ -92,20 +92,19 @@ impl XinY {
                 }
             };
 
-            if !name.ends_with(".html.markdown") {
+            if !name.ends_with(".md") {
                 continue;
             }
 
-            // Get rid of the language or region tag from the filename.
-            let filter_out = format!("-{}.html", &language.language_tag);
-            let name = name.replace(&filter_out, ".html");
-            let filter_out = format!("-{}.html", &language.region_tag);
-            let name = name.replace(&filter_out, ".html");
+            // Skip non-subject files (README.md, CONTRIBUTING.md, etc.)
+            if !name.chars().next().map_or(false, |c| c.is_lowercase()) {
+                continue;
+            }
 
-            let subject_name: &str = name
-                .split('.')
-                .next()
-                .context("XinY::collect_subjects splitting entry name by '.'")?;
+            let subject_name = match name.strip_suffix(".md") {
+                Some(s) => s,
+                None => continue,
+            };
 
             self.subjects
                 .entry(subject_name.to_string())
@@ -163,9 +162,15 @@ impl XinY {
 
             let language = match Language::from_tag(name) {
                 Ok(lang) => lang,
-                Err(e) => {
-                    // eprintln!("Skipping path {:?}; invalid language tag ({:?})", path, e);
-                    continue;
+                Err(_) => {
+                    // learnxinyminutes-docs uses single-tag dir names ("de", "fr", "ar").
+                    // Try doubling to a full IANA tag (de:de-de, fr:fr-fr, ar:ar-ar).
+                    // Dirs with irregular region codes (vi, no, hi, etc.) are skipped
+                    // here and will be handled in a future mapping pass.
+                    match Language::from_tag(&format!("{}-{}", name, name)) {
+                        Ok(lang) => lang,
+                        Err(_) => continue,
+                    }
                 }
             };
 

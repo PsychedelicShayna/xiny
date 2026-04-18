@@ -1,53 +1,40 @@
 use std::path::PathBuf;
 use std::process;
 
-use std::io::BufRead;
-
 use anyhow::{self as ah, Context};
 
-/// Outputs the Markdown document to stdout using the provided renderer, or as
-/// raw plaintext if None is provided.
-pub fn print_document(path: &PathBuf, renderer: Option<&str>) -> ah::Result<()> {
+const FALLBACK_VIEWERS: &[&str] = &["glow", "mdt", "bat", "less"];
+
+fn viewer_in_path(name: &str) -> bool {
+    std::env::var("PATH")
+        .unwrap_or_default()
+        .split(':')
+        .any(|dir| std::path::Path::new(dir).join(name).exists())
+}
+
+/// Outputs the Markdown document using the preferred renderer, falling back
+pub fn print_document(path: &PathBuf, preferred: Option<&str>) -> ah::Result<()> {
     if !path.exists() {
-        return Err(ah::anyhow!("The document does not exist."));
+        return Err(ah::anyhow!("Document does not exist: {}", path.display()));
     }
 
-    // Simplest case: print the document as plaintext.
-    if renderer.is_none() {
-        let document = std::fs::read_to_string(path).context("print_document reading document")?;
-        println!("{}", document);
-        return Ok(());
-    }
+    let renderer = preferred
+        .filter(|r| !r.is_empty() && viewer_in_path(r))
+        .or_else(|| FALLBACK_VIEWERS.iter().find(|&&r| viewer_in_path(r)).copied());
 
-    // If a renderer is provided, we need to check if the binary exists.
-    let renderer = renderer.unwrap();
-
-    let env_path =
-        std::env::var("PATH").context("print_document getting PATH environment variable")?;
-
-    let env_paths = env_path.split(':');
-
-    let mut binary_exists: bool = false;
-
-    for path in env_paths {
-        let path = std::path::Path::new(path).join(renderer);
-
-        if path.exists() {
-            binary_exists = true;
-            break;
+    match renderer {
+        Some(r) => {
+            process::Command::new(r)
+                .arg(path.display().to_string())
+                .status()
+                .context("print_document spawning renderer")?;
+        }
+        None => {
+            let document =
+                std::fs::read_to_string(path).context("print_document reading document")?;
+            print!("{}", document);
         }
     }
-
-    if !binary_exists {
-        return Err(ah::anyhow!(
-            "Could not find the renderer binary in the PATH environment variable."
-        ));
-    }
-
-    process::Command::new(renderer)
-        .arg(path.display().to_string())
-        .status()
-        .context("print_document checking renderer binary")?;
 
     Ok(())
 }
