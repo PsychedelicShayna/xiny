@@ -12,7 +12,7 @@ impl SearchEngine for TermSearch {
         let _terms = query.split_whitespace().collect::<Vec<&str>>();
 
         lines
-            .into_iter()
+            .iter()
             .fold(Vec::<(usize, usize)>::new(), |mut acc, (line_num, line)| {
                 let line = line.to_ascii_lowercase();
 

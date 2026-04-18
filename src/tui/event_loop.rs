@@ -204,7 +204,7 @@ pub fn event_loop<SE: SearchEngine>(subject: PathBuf) -> ah::Result<()> {
         // Render the TUI based on the state of the event loop, i.e. state.
         // The rendering logic should be apart from the event loop logic.
         // Its sole responsibility is to render state.
-        render::components(&mut state, &anchor)?;
+        render::components(&state, &anchor)?;
     }
 
     // If we're here, then the event loop has been killed.

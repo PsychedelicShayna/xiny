@@ -15,8 +15,8 @@ use crossterm::{
 pub fn render_previewer(state: &TuiState, _anchor: &(usize, usize)) -> ah::Result<()> {
     let dims = &state.preview_dimensions;
 
-    let _rows = dims.rows() as usize;
-    let _cols = dims.cols() as usize;
+    let _rows = dims.rows();
+    let _cols = dims.cols();
 
     let separator = BHCL.to_string().repeat(36);
 

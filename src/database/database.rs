@@ -97,7 +97,7 @@ impl XinY {
             }
 
             // Skip non-subject files (README.md, CONTRIBUTING.md, etc.)
-            if !name.chars().next().map_or(false, |c| c.is_lowercase()) {
+            if !name.chars().next().is_some_and(|c| c.is_lowercase()) {
                 continue;
             }
 
