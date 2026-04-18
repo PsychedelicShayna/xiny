@@ -1,9 +1,0 @@
-/target
-/learnxinyminutes-docs
-*.shada
-*.vim
-*.txt
-*.nfo
-*.excalidraw
-*.png
-.gitignore
